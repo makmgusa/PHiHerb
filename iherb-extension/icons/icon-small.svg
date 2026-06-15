@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!-- Pill/tablet shape background -->
+  <rect x="0.75" y="3.5" width="14.5" height="9" rx="4.5" fill="#5a9e2f"/>
+  <!-- Simplified two-letter mark for small sizes -->
+  <text
+    x="8"
+    y="8"
+    font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
+    font-size="6"
+    font-weight="700"
+    fill="white"
+    text-anchor="middle"
+    dominant-baseline="central"
+    letter-spacing="0.2"
+  >PH</text>
+</svg>

@@ -1,0 +1,557 @@
+// Main content script for the Price Helper for iHerb extension.
+// Calculates unit prices for pill/supplement products on listing pages
+// and displays color-coded badges indicating relative price within the category.
+
+// Read version from manifest.json.
+const VERSION = browser.runtime.getManifest().version;
+
+// Runtime flags populated from config.json before any scan runs.
+// Defaults keep the extension working if config loading fails.
+let debug = false;
+let beta = false;
+
+// Optional prefix modifiers (e.g. "vegan", "chewable", "vegetarian").
+const PILL_UNIT_PREFIXES =
+  "(?:veg(?:gie)?\\s+|vegetable\\s+|vegetarian\\s+|vegan\\s+|chewable\\s+|liquid\\s+|bisected\\s+|super\\s*food\\s+|rapid\\s+release\\s+)?";
+
+// Pipe separated list of recognized pill/dose words
+const PILL_UNIT_TERMS =
+  "ct|capsules?|caps?|tablets?|softgels?|soft\\s+gels?|pills?|count|caplets?|gelcaps?|gelcap|vegicaps?|vegcaps?|" +
+  "stick\\s+packs?|soft\\s+chews?|gumm(?:y|ies)|lozenges?|nuggets?|patch(?:es)?|pouches?";
+
+// Combined source: prefix group + pill words + word boundary
+const PILL_UNIT_PATTERN_SOURCE = PILL_UNIT_PREFIXES + "(" + PILL_UNIT_TERMS + ")\\b";
+
+const PILL_QUANTITY_PATTERN = new RegExp(
+  `\\b(\\d+)\\s*${PILL_UNIT_PATTERN_SOURCE}`,
+  "i",
+);
+
+/**
+ * Category is the parent for all products. Name is the key.
+ * Maintains high and low price points.
+ */
+class Category {
+  // Reuse existing instances so price ranges accumulate across rescans.
+  static registry = new Map();
+
+  /**
+   * @param {{ name: string, lowPrice?: number|null, highPrice?: number|null }} args
+   */
+  constructor({ name, lowPrice = null, highPrice = null }) {
+    /** @type {string} */
+    this.name = name;
+    /** @type {number|null} */
+    this.lowPrice = lowPrice;
+    /** @type {number|null} */
+    this.highPrice = highPrice;
+  }
+
+  /**
+   * Create a Category from raw page text, normalizing the name.
+   * @param {string} rawName
+   * @returns {Category|null}
+   */
+  static setCategory(rawName) {
+    const trimmedName = rawName.trim();
+    if (!trimmedName) {
+      return null;
+    }
+    const normalizedName = trimmedName.toLowerCase().replace(/\s+/g, " ");
+    if (Category.registry.has(normalizedName)) {
+      return Category.registry.get(normalizedName);
+    }
+    const category = new Category({ name: normalizedName });
+    Category.registry.set(normalizedName, category);
+    return category;
+  }
+
+  /**
+   * Update this category's high and low prices
+   * @param {number} unitPrice
+   */
+  recordObservedUnitPrice(unitPrice) {
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+      return;
+    }
+    if (this.lowPrice === null || unitPrice < this.lowPrice) {
+      this.lowPrice = unitPrice;
+    }
+    if (this.highPrice === null || unitPrice > this.highPrice) {
+      this.highPrice = unitPrice;
+    }
+  }
+
+  /** @type {string} sessionStorage key for the serialized registry */
+  static SESSION_KEY = "iherb-upc-category-registry";
+
+  /**
+   * Hydrate the in memory registry from sessionStorage so category price
+   * ranges survive full page reloads within the same browser tab.
+   */
+  static restoreFromSession() {
+    try {
+      const raw = sessionStorage.getItem(Category.SESSION_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      for (const [name, data] of Object.entries(parsed)) {
+        if (Category.registry.has(name)) {
+          continue;
+        }
+        const low = data.lowPrice;
+        const high = data.highPrice;
+        // Accept positive finite numbers or null; skip anything else.
+        const validLow =
+          low === null || (Number.isFinite(low) && low > 0) ? low : null;
+        const validHigh =
+          high === null || (Number.isFinite(high) && high > 0) ? high : null;
+        const category = new Category({
+          name,
+          lowPrice: validLow,
+          highPrice: validHigh,
+        });
+        Category.registry.set(name, category);
+      }
+    } catch {
+      // sessionStorage unavailable or corrupt data - start with empty registry.
+    }
+  }
+
+  /**
+   * Persist the current in memory registry to sessionStorage so it can be
+   * restored after a full page reload.
+   */
+  static persistToSession() {
+    try {
+      const serialized = {};
+      for (const [name, category] of Category.registry) {
+        serialized[name] = {
+          lowPrice: category.lowPrice,
+          highPrice: category.highPrice,
+        };
+      }
+      sessionStorage.setItem(Category.SESSION_KEY, JSON.stringify(serialized));
+    } catch {
+      // sessionStorage full or unavailable - silently skip.
+    }
+  }
+}
+
+/**
+ * Product is the child for all categories. Name is the key
+ * Maintains price, unit price, price tier, product name and currency symbol
+ */
+
+class Product {
+  /**
+   * @param {{ category: Category, name: string, price: number, currencySymbol: string }} args
+   */
+  constructor({ category, name, price, currencySymbol }) {
+    /** @type {Category} */
+    this.category = category;
+    /** @type {string} */
+    this.name = name;
+    /** @type {number} */
+    this.price = price;
+    /** @type {string} */
+    this.currencySymbol = currencySymbol;
+    /** @type {number|null} */
+    this.unitPrice = null;
+    /** @type {string} */
+    this.priceTier = "mid";
+    /** @type {string} */
+    this.priceLabel = "mid price";
+  }
+
+  /**
+   * Parse quantity from this product's title, matching count-based units.
+   * @returns {{ quantity: number }|null}
+   */
+  parseQuantity() {
+    const quantityMatch = this.name.match(PILL_QUANTITY_PATTERN);
+    if (!quantityMatch) {
+      return null;
+    }
+    const quantity = Number.parseInt(quantityMatch[1], 10);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      return null;
+    }
+    return { quantity };
+  }
+
+  /**
+   * Compute unit price from this product's price and parsed quantity.
+   * Updates the category's observed range on success.
+   * @returns {boolean}
+   */
+  computeUnitPrice() {
+    const parsed = this.parseQuantity();
+    if (!parsed) {
+      return false;
+    }
+    const unitPrice = this.price / parsed.quantity;
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+      return false;
+    }
+    this.unitPrice = unitPrice;
+    this.category.recordObservedUnitPrice(unitPrice);
+    return true;
+  }
+
+  /**
+   * Parse the displayed price text into numeric value and symbol.
+   * @param {HTMLElement} rootElement
+   * @returns {{ value: number, currencySymbol: string }|null}
+   */
+  static parsePrice(rootElement) {
+    const priceElement = rootElement.querySelector(".price");
+    const rawPriceText = (priceElement?.textContent || "").trim();
+    if (!rawPriceText) {
+      return null;
+    }
+    const numericPart = rawPriceText.replace(/[^0-9.,]/g, "");
+    const normalizedNumber = numericPart.replace(/,/g, "");
+    const value = Number.parseFloat(normalizedNumber);
+    if (!Number.isFinite(value) || value <= 0) {
+      return null;
+    }
+    const symbolMatch = rawPriceText.match(/[^0-9.,\s]/);
+    const currencySymbol = symbolMatch ? symbolMatch[0] : "$";
+    return { value, currencySymbol };
+  }
+
+  /**
+   * Parse one product tile into a Product.
+   * @param {HTMLElement} rootElement
+   * @param {Category} category
+   * @returns {Product|null}
+   */
+  static scanTile(rootElement, category) {
+    try {
+      /** @type {HTMLAnchorElement | null} */
+      const linkElement = rootElement.querySelector(
+        "a.absolute-link.product-link",
+      );
+
+      const name = (linkElement?.getAttribute("title") || "").trim();
+      if (!name) {
+        return null;
+      }
+
+      const parsedPrice = Product.parsePrice(rootElement);
+      if (!parsedPrice) {
+        return null;
+      }
+
+      const product = new Product({
+        category,
+        name,
+        price: parsedPrice.value,
+        currencySymbol: parsedPrice.currencySymbol,
+      });
+
+      if (!product.computeUnitPrice()) {
+        return null;
+      }
+      return product;
+    } catch (err) {
+      if (debug) {
+        console.error("[iHerb UnitPrice] scanTile failed:", err);
+      }
+      return null;
+    }
+  }
+
+  /**
+   * Set tier from where this product's unit price sits in the category's
+   * observed min/max range.
+   */
+  setPriceTier() {
+    const low = this.category.lowPrice;
+    const high = this.category.highPrice;
+    let tier = "mid";
+    if (
+      low != null &&
+      high != null &&
+      high > low &&
+      Number.isFinite(this.unitPrice)
+    ) {
+      const rel = (this.unitPrice - low) / (high - low);
+      if (rel < 0.25) {
+        tier = "low";
+      } else if (rel > 0.75) {
+        tier = "high";
+      }
+    }
+    this.priceTier = tier;
+    this.priceLabel = `${tier} price`;
+  }
+
+  /**
+   * Render this product into a product tile as a unit price badge (see inject.css).
+   * @param {HTMLElement} rootElement
+   */
+  renderBadge(rootElement) {
+    let badgeNode = rootElement.querySelector(".iherb-unit-price-badge");
+    if (!(badgeNode instanceof HTMLSpanElement)) {
+      badgeNode?.remove();
+      badgeNode = document.createElement("span");
+    }
+    badgeNode.className = `iherb-unit-price-badge iherb-dot-`+this.priceTier;
+
+    // Rebuild the badge contents so repeat scans can refresh the page-relative
+    // color without accumulating duplicate indicator nodes.
+    badgeNode.replaceChildren();
+
+    const valueNode = document.createElement("span");
+    valueNode.className = "iherb-unit-price-text";
+    valueNode.textContent =
+      `${this.currencySymbol}${this.unitPrice.toFixed(2)}/unit`;
+    badgeNode.title = `Price Helper: ${this.priceLabel}`;
+    badgeNode.setAttribute(
+      "aria-label",
+      `${valueNode.textContent}; ${this.priceLabel}.`,
+    );
+    badgeNode.append(valueNode);
+
+    // Show a subtle marker while running as a beta build.
+    if (beta) {
+      const betaMarker = document.createElement("span");
+      betaMarker.className = "iherb-beta-marker";
+      betaMarker.textContent = "beta";
+      betaMarker.setAttribute("aria-hidden", "true");
+      badgeNode.append(betaMarker);
+    }
+
+    /** @type {HTMLElement | null} */
+    const priceElement = rootElement.querySelector(".price");
+    if (priceElement?.parentElement) {
+      if (!badgeNode.parentElement) {
+        priceElement.parentElement.appendChild(badgeNode);
+      }
+      return;
+    }
+
+    if (!badgeNode.parentElement) {
+      rootElement.appendChild(badgeNode);
+    }
+  }
+}
+
+/**
+* CSS selector that roughly matches product tiles on iHerb listing pages.
+* Using `.product-cell` as a general container works for many layouts and
+* can be updated in later phases if the DOM structure changes. 
+*/
+const productTileSelector = ".product-cell, .product-inner, .product";
+
+/**
+ * Return the page element that labels the current listing.
+ * Category pages use h1.sub-header-title; search results pages use
+ * .sub-sort-title.display-items. Falls back to null if neither is present.
+ * @returns {HTMLElement|null}
+ */
+function getHeaderNode() {
+  return (
+    document.querySelector("h1.sub-header-title") ??
+    document.querySelector(".sub-sort-title.display-items")
+  );
+}
+
+/**
+ * Extract a category name from the header node
+ * On search pages the node contains a child span with the quoted search term
+ * (e.g. \u201CC\u201D); strip the curly quotes to get a clean key.
+ * On category pages the node's full textContent is already the category name.
+ * @param {HTMLElement} headerNode
+ * @returns {string}
+ */
+function getCategoryName(headerNode) {
+  const spanText = headerNode.querySelector("span")?.textContent;
+  if (spanText) {
+    return spanText.replace(/["\u201C\u201D]/g, "").trim();
+  }
+  return headerNode.textContent.trim();
+}
+
+/**
+ * DEBUG: Render a floating panel near the page header showing the current
+ * Category state and the computed tier boundaries so we can visually verify
+ * that category detection and price range tracking are working. Also shows version number.
+ * @param {Category} category
+ */
+function renderDebugPanel(category) {
+  const PANEL_ID = "iherb-debug-panel";
+  let panel = document.getElementById(PANEL_ID);
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.id = PANEL_ID;
+    const headerNode = getHeaderNode();
+    if (headerNode?.parentElement) {
+      headerNode.parentElement.insertBefore(panel, headerNode.nextSibling);
+    } else {
+      document.body.prepend(panel);
+    }
+  }
+
+  const low = category.lowPrice;
+  const high = category.highPrice;
+  const hasRange = low != null && high != null && high > low;
+
+  // Tier boundaries mirror setPriceTier(): low < 25%, mid 25-75%, high > 75%.
+  const rangeSpan = hasRange ? high - low : 0;
+  const lowCeil = hasRange ? (low + rangeSpan * 0.25).toFixed(4) : "-";
+  const highFloor = hasRange ? (low + rangeSpan * 0.75).toFixed(4) : "-";
+
+  const fmt = (v) => (v != null ? v.toFixed(4) : "null");
+
+  panel.textContent = [
+    `v${VERSION}`,
+    `Category: "${category.name}"`,
+    `lowPrice: ${fmt(low)}  |  highPrice: ${fmt(high)}`,
+    `Low range: ≤ ${lowCeil}  |  Mid range: ${lowCeil} – ${highFloor}  |  High range: ≥ ${highFloor}`,
+  ].join("  ·  ");
+}
+
+/**
+ * Scan listing tiles and inject unit prices where data is valid.
+ * Safe to call repeatedly because each pass rebuilds page-local badge state.
+ */
+function scanProducts() {
+  try {
+    const headerNode = getHeaderNode();
+    const rawCategoryName = headerNode
+      ? getCategoryName(headerNode)
+      : "All Products";
+    const category = Category.setCategory(rawCategoryName);
+    if (!category) {
+      return;
+    }
+    
+    // Pass 1: build products for each qualifying tile.
+    const pageEntries = [];
+    for (const productTile of document.querySelectorAll(productTileSelector)) {
+      if (!(productTile instanceof HTMLElement)) {
+        continue;
+      }
+      const tileProduct = Product.scanTile(productTile, category);
+      if (!tileProduct) {
+        productTile.querySelector(".iherb-unit-price-badge")?.remove();
+        continue;
+      }
+      pageEntries.push({ productTile, tileProduct });
+    }
+
+    // Pass 2: color tiers from category low/high range (set in pass 1).
+    for (const entry of pageEntries) {
+      entry.tileProduct.setPriceTier();
+      entry.tileProduct.renderBadge(entry.productTile);
+    }
+
+    // Persist updated category ranges so they survive full page reloads.
+    Category.persistToSession();
+
+    if (debug) {
+      renderDebugPanel(category);
+    }
+  } catch (err) {
+    if (debug) {
+      console.error("[iHerb UnitPrice] scanProducts failed:", err);
+    }
+  }
+}
+
+/**
+ * Watch for SPA navigations and re-scan when the page changes.
+ * Detects two kinds of navigation that don't re-inject the content script:
+ *  - Category switch: h1 title text changes (e.g. CoQ10 → Vitamin B).
+ *  - Pagination: URL changes while h1 stays the same (e.g. page 1 → 2).
+ * Both checks piggyback on the DOM mutations iHerb triggers when swapping
+ * product tiles, so no additional polling or listeners are needed.
+ */
+function observePageChanges() {
+  let lastCategoryText = (getHeaderNode()?.textContent || "").trim();
+  let lastUrl = location.href;
+  let updateTimeout;
+
+  const observer = new MutationObserver(() => {
+    const currentText = (getHeaderNode()?.textContent || "").trim();
+    const currentUrl = location.href;
+
+    const categoryChanged = currentText && currentText !== lastCategoryText;
+    const urlChanged = currentUrl !== lastUrl;
+
+    if (categoryChanged) {
+      lastCategoryText = currentText;
+    }
+    if (urlChanged) {
+      lastUrl = currentUrl;
+    }
+
+    if (!categoryChanged && !urlChanged) {
+      return;
+    }
+
+    clearTimeout(updateTimeout);
+    updateTimeout = setTimeout(scanProducts, 300);
+  });
+
+  if (!document.body) {
+    return;
+  }
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
+}
+
+/**
+ * Fetch runtime configuration from config.json bundled with the extension.
+ * Returns an empty object if the file is missing or unreadable so callers
+ * can safely fall back to module-level defaults.
+ * @returns {Promise<object>}
+ */
+async function loadConfig() {
+  try {
+    const response = await fetch(browser.runtime.getURL("config.json"));
+    if (!response.ok) {
+      console.warn(`[iHerb UnitPrice] config.json fetch failed: ${response.status}`);
+      return {};
+    }
+    return await response.json();
+  } catch (err) {
+    console.warn("[iHerb UnitPrice] config.json could not be loaded:", err);
+    return {};
+  }
+}
+
+/**
+ * Load config, then initialize scanning and page-change observation.
+ * Waits for DOMContentLoaded if the page is still loading when config resolves.
+ */
+async function init() {
+  const config = await loadConfig();
+  debug = config.debug === true;
+  beta = config.beta === true;
+
+  if (beta) {
+    console.log(`[iHerb UnitPrice Beta v${VERSION}]`);
+  }
+
+  // Wait for the DOM if it is not yet ready.
+  if (document.readyState === "loading") {
+    await new Promise((resolve) =>
+      document.addEventListener("DOMContentLoaded", resolve, { once: true }),
+    );
+  }
+
+  Category.restoreFromSession();
+  scanProducts();
+  observePageChanges();
+}
+
+init();

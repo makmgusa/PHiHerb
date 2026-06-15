@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Pill/tablet shape background -->
+  <rect x="6" y="28" width="116" height="72" rx="36" fill="#5a9e2f"/>
+  <!-- Brand text -->
+  <text
+    x="64"
+    y="64"
+    font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
+    font-size="38"
+    font-weight="700"
+    fill="white"
+    text-anchor="middle"
+    dominant-baseline="central"
+    letter-spacing="-1"
+  >PH4iH</text>
+</svg>

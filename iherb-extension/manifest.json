@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Price Helper for iHerb Beta",
+  "version": "0.3.5.1",
+  "description": "Firefox extension that calculates and displays unit price badges for pill-like iHerb products.",
+  "homepage_url": "https://mklimp.com/phiherb/",
+  "developer": {
+    "name": "Mark Klimp",
+    "url": "https://mklimp.com/phiherb/"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "price-helper-for-iherb@mklimp.com",
+      "strict_min_version": "142.0",
+      "update_url": "https://mklimp.com/phiherb/updates.json",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  },
+  "icons": {
+    "16": "icons/icon-small.svg",
+    "32": "icons/icon-small.svg",
+    "48": "icons/icon-small.svg",
+    "128": "icons/icon.svg"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://www.iherb.com/*"],
+      "js": ["content/content.js"],
+      "css": ["styles/inject.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["config.json"],
+      "matches": ["*://www.iherb.com/*"]
+    }
+  ]
+}
