@@ -1,14 +1,14 @@
 ## Price Helper for iHerb Beta
 
-A Firefox WebExtension that calculates and displays unit prices for pill like supplements on `iherb.com`.
+A Firefox WebExtension that calculates and displays unit prices for pill like supplements on https://www.iherb.com.
 
 ### Current Status: Phase 3.5 (Beta Release) - In Progress
 
-Phases 1–3 (Stage 3) are complete. The extension works on listing and search pages with session-backed data storage keeping history for the entirety of the tab duration. Upon completion of Phase 3.5 the extension will be released in beta form on mklimp.com.
+Phases 1–3 (Stage 3) are complete. The extension works on listing and search pages with session-backed data storage keeping history for the entirety of the tab duration. Upon completion of Phase 3.5 the extension will be released in beta form on https://mklimp.com/phiherb.
 
 ### What It Does
 
-- Detects product listing tiles on `iherb.com` supplement and search pages.
+- Detects product listing tiles on https://www.iherb.com supplement and search pages.
 - Identifies pill like supplements (capsules, tablets, softgels, gummies, lozenges, etc.) by keyword matching in the product title.
 - Extracts price from `.price` and quantity from the product link `title` attribute.
 - Calculates `unitPrice = price / quantity` and injects a badge (e.g. `$0.15/unit`) near each qualifying product's price.
@@ -47,20 +47,20 @@ Runtime behavior is controlled by `iherb-extension/config.json`:
 - `icons/two icon svg files` - the icons that display when looking at the extension in Firefox extension menu 
 
 ### Loading the beta extension into Firefox
-Navigate to mklimp.com/phiherb and click on the install link.
+Navigate to https://mklimp.com/phiherb and click on the install link.
 
 ### Loading the Extension in Firefox (Development)
-1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`.
-2. Click **"Load Temporary Add-on..."**.
-3. Select the `manifest.json` file in the `iherb-extension/` directory.
-4. Visit an iHerb category or search page (e.g. `https://www.iherb.com/c/coq10`).
-5. Confirm that pill-form products display a unit price badge (colored dot + `$0.XX/unit`) near the listed price.
+1. Open Firefox and navigate to URL about:debugging
+2. Click This Firefox on the left
+3. Click **"Load Temporary Add-on..."**.
+4. Select the `manifest.json` file in the `iherb-extension/` directory.
+5. Visit an iHerb category or search page (e.g. https://www.iherb.com/c/coq10).
+6. Confirm that pill-form products display a unit price badge (colored dot + `$0.XX/unit`) near the listed price.
 
 ### Privacy
 - This extension collects no data. It reads product, price and quantity information from the iHerb site and then adds Price Helper info near that price.
-- Firefox labels the iherb.com content permission as accessing "your" data. This is standard boilerplate for any extension that reads a site's page content. No personal data is accessed or transmitted. The full source is available on GitHub.
+- Firefox labels the https://www.iherb.com content permission as accessing "your" data. This is standard boilerplate for any extension that reads a site's page content. No personal data is accessed or transmitted. The full source is available on GitHub.
 
 ### Feedback
 
-<!-- Update once feedback is finalized (Phase 3.5) -->
-Report issues or suggestions to support@mklimp.com.
+Post feedback or report issues at [r/PriceHelper](https://www.reddit.com/r/PriceHelper/).
