@@ -1,61 +1,42 @@
 ## Price Helper for iHerb Beta
 
-A Firefox WebExtension that calculates and displays unit prices for pill like supplements on https://www.iherb.com.
+A Firefox WebExtension that calculates and displays unit prices for pill like supplements on https://www.iherb.com. 
 
-### Current Status: Phase 3.5 (Beta Release) - In Progress
+### Current Status: Public Beta
 
-Phases 1–3 (Stage 3) are complete. The extension works on listing and search pages with session-backed data storage keeping history for the entirety of the tab duration. Upon completion of Phase 3.5 the extension will be released in beta form on https://mklimp.com/phiherb.
+The extension works on listing and search pages with data storage keeping history for the entirety of the tab duration.
 
 ### What It Does
 
-- Detects product listing tiles on https://www.iherb.com supplement and search pages.
+- Detects product listings on https://www.iherb.com supplement and search pages.
 - Identifies pill like supplements (capsules, tablets, softgels, gummies, lozenges, etc.) by keyword matching in the product title.
 - Extracts price from `.price` and quantity from the product link `title` attribute.
 - Calculates `unitPrice = price / quantity` and injects a badge (e.g. `$0.15/unit`) near each qualifying product's price.
-- Color-codes each badge with a dot based on where the unit price falls within the category's observed range:
+- Color codes each badge with a dot based on where the unit price falls within the category's observed range:
   - **Green** - lower ~25% of the range (best value).
   - **Yellow** - middle ~50%.
   - **Red** - upper ~25% (most expensive).
-- Category price ranges (`lowPrice` / `highPrice`) accumulate as you browse and persist across page reloads within the browser tab session via `sessionStorage`.
-- A `MutationObserver` detects SPA navigation (category switches and pagination) and triggers a debounced rescan.
+- Category price ranges (low price to high price) accumulate as you browse and persist across page reloads within the browser tab life.
+- Price ranges are tracked per product or search. So Vitamin A will have a different price range than Vitamin D.
 
 ### Known Issues
 
 - **Detection gaps**: Some supplement forms may not be recognized if the product title uses uncommon phrasing. Powders, liquids, and creams are intentionally skipped.
-- **Single-tab session scope**: Category price ranges are per-tab. Opening the same category in a new tab starts fresh.
-- **USD only**: No multi-currency support yet (planned for Phase 8).
-- **Listing/search pages only**: Product detail pages are not yet supported (planned for Phase 7).
-- **Back button not supported**: Pressing the back button does not display any Price Helper info. Session info is still maintained and Price Helper info will return upon browsing via the iHerb pages.
+- **Single-tab session scope**: Category price ranges are per tab. Opening the same category in a new tab starts fresh.
+- **USD only**: No multi-currency support yet (planned in a later phase).
+- **Listing/search pages only**: Product detail pages are not yet supported (planned in a later phase).
 - **"See in cart" prices skipped**: Price Helper info does not show for "see in cart" products.
-
-### Debug and Beta Flags
-
-Runtime behavior is controlled by `iherb-extension/config.json`:
-
-```json
-{ "debug": false, "beta": false }
-```
-- `debug: true` - shows a floating category/range panel near the page header and enables logging.
-- `beta: true` - appends a small `beta` marker to each badge and prints a startup log to the console.
 
 ### File Overview
 
-- `manifest.json` - WebExtension manifest (Manifest V3, Firefox).
-- `config.json` - Runtime flags (`debug`, `beta`). Single source of truth for build-time behavior toggles.
-- `content/content.js` - Content script: tile scanning, price parsing, unit price calculation, badge rendering, SPA navigation detection.
-- `styles/inject.css` - Styling for unit price badges, color-coded dots, and the beta marker.
-- `icons/two icon svg files` - the icons that display when looking at the extension in Firefox extension menu 
+- `iherb-extension/manifest.json` - WebExtension manifest (Manifest V3, Firefox).
+- `iherb-extension/config.json` - Runtime flags.
+- `iherb-extension/content/content.js` - Content script: tile scanning, price parsing, unit price calculation, badge rendering, SPA navigation detection.
+- `iherb-extension/styles/inject.css` - Styling for unit price badges, color-coded dots, and the beta marker.
+- `iherb-extension/icons/` - Extension icons used by Firefox.
 
-### Loading the beta extension into Firefox
-Navigate to https://mklimp.com/phiherb and click on the install link.
-
-### Loading the Extension in Firefox (Development)
-1. Open Firefox and navigate to URL about:debugging
-2. Click This Firefox on the left
-3. Click **"Load Temporary Add-on..."**.
-4. Select the `manifest.json` file in the `iherb-extension/` directory.
-5. Visit an iHerb category or search page (e.g. https://www.iherb.com/c/coq10).
-6. Confirm that pill-form products display a unit price badge (colored dot + `$0.XX/unit`) near the listed price.
+### Installation
+Install the extension from the Firefox Extensions and Themes menu. If you are having problems finding it, go to https://mklimp.com/phiherb and click the install link.
 
 ### Privacy
 - This extension collects no data. It reads product, price and quantity information from the iHerb site and then adds Price Helper info near that price.

@@ -8,33 +8,76 @@ Reference: https://extensionworkshop.com/documentation/develop/create-an-appeali
 
 ---
 
-## Use `web-ext build` to produce an `.xpi` for extension submission
+## Listed Beta Release Procedure
 
-AMO's developer UI triggers installation when you click the .xpi link and offers no right-click save option. Use the `/type:attachment` URL trick below to force a download.
+Use this procedure for a public AMO beta release. Version source of truth is `iherb-extension/manifest.json`.
 
-- confirm web-ext installation with `web-ext --version`
-- If web-ext is not installed, install it with `npm install -g web-ext`. Run the version command again to confirm install.
-- From iherb iherb-extension directory `/home/megagrubby/Code/iHerbDev/iHerbDev` run `web-ext build`
+1. Increment and verify release version:
+   - Increment the version in `iherb-extension/manifest.json`.
+   - Update the XPI file name section in this document.
+   - Update the Version Details section in this document.
+   - Confirm planned git tags/releases match the `manifest.json` version exactly.
 
-## Submit the Extension to AMO
-- Submit the extension as **unlisted**
-   - Go to https://addons.mozilla.org/en-US/developers/ and choose self distribution.
-   - upload the zip file created in the web-ext build step. It is in the `web-ext-artifacts` directory
-      - Verify there are no errors or warnings. Submit for desktop only.
-   - Next step, no code generators.
-   - At this point, we are "done" and await an email from AMO.
-   - When the email arrives, follow these steps to download the signed `.xpi`:
-      - Go to https://addons.mozilla.org/en-US/developers/ and open the extension from My Add-ons.
-      - Click **Edit Product Page** > **Manage Status & Versions** > click the version number.
-      - In the **Files** row, hover the `.xpi` link and copy the URL. It will look like:
-        `https://addons.mozilla.org/firefox/downloads/file/XXXXXXX/filename.xpi`
-      - Insert `/type:attachment/` after the file number to force a download instead of install:
-        `https://addons.mozilla.org/firefox/downloads/file/XXXXXXX/type:attachment/filename.xpi`
-      - Paste that URL into the address bar and the file will download.
-      - Rename the file if desired (see XPI file name section) and upload to `https://mklimp.com/phiherb/`.
-      - Update `updates.json` to point to the new hosted URL. The file number changes with each release.
+2. Review release documentation:
+   - Review `README.md` for current status, install instructions, known issues, privacy text, and feedback/support links.
+   - Confirm this document's listing fields still match the release behavior.
 
-   - Since we are self hosting for beta, none of the content in the remainder of this document is needed. All of this information is for public release.
+3. Verify release config:
+   - Confirm `manifest.json` name, description, homepage, developer info, and data collection fields are current.
+   - Confirm AMO-listed update behavior is correct before building. Review whether `browser_specific_settings.gecko.update_url` should be removed for the listed AMO package.
+   - Confirm `config.json` does not expose development behavior for the release build.
+
+4. Build the AMO submission package:
+   - Confirm web-ext installation with `web-ext --version`.
+   - If web-ext is not installed, install it with `npm install -g web-ext`. Run the version command again to confirm install.
+   - From `/home/megagrubby/Code/iHerbDev/iherb-extension`
+   - Remove any files in the web-ext-artifacts folder
+   - Run `web-ext build`
+   - Use the `.zip` file created in the `web-ext-artifacts` directory for AMO upload.
+
+5. Capture release screenshots:
+   - Use the final release build so screenshots match the submitted behavior.
+   - Use the screenshot list in the Screenshots section below.
+
+6. Submit the extension as a listed beta:
+   - Go to https://addons.mozilla.org/en-US/developers/
+   - Choose listed distribution.
+   - Upload the `.zip` file created by `web-ext build`.
+   - Verify AMO validation has no errors or warnings.
+   - Select desktop only unless Android support has been verified.
+   - Enter the listing fields from this document.
+   - Enter the release notes from the Version Details section.
+   - Submit for AMO review.
+   - Upload screenshots to the Developer Hub
+   - Upload 128x128 icon to the Developer Hub
+
+7. Publish the public GitHub release snapshot:
+   - Follow `git-publish.md` to copy the final release snapshot from `iHerbDev` to the public `iHerb` repo.
+   - Create matching release tags/assets where the procedure calls for them.
+   - Verify the public repo matches the exact version submitted to AMO.
+
+
+## If Self Hosting Is Needed
+
+Use this fallback procedure if the listed beta path is blocked and the extension needs to be signed by AMO for self distribution.
+
+- Submit the extension as **unlisted**:
+  - Go to https://addons.mozilla.org/en-US/developers/ and choose self distribution.
+  - Upload the `.zip` file created in the `web-ext-artifacts` directory.
+  - Verify there are no errors or warnings. Submit for desktop only.
+  - Select no code generators.
+  - At this point, await the AMO email.
+- When the email arrives, download the signed `.xpi`:
+  - Go to https://addons.mozilla.org/en-US/developers/ and open the extension from My Add-ons.
+  - Click **Edit Product Page** > **Manage Status & Versions** > click the version number.
+  - In the **Files** row, hover the `.xpi` link and copy the URL. It will look like:
+    `https://addons.mozilla.org/firefox/downloads/file/XXXXXXX/filename.xpi`
+  - Insert `/type:attachment/` after the file number to force a download instead of install:
+    `https://addons.mozilla.org/firefox/downloads/file/XXXXXXX/type:attachment/filename.xpi`
+  - Paste that URL into the address bar and the file will download.
+  - Rename the file if desired. See the XPI file name section.
+  - Upload the signed `.xpi` to `https://mklimp.com/phiherb/`.
+  - Update `updates.json` to point to the new hosted URL. The file number changes with each release. More details in the site repo.
 
 ## AMO Listing Field Status
 
@@ -43,6 +86,7 @@ Fields that must be set on the AMO Developer Hub before or at public release.
 - [ ] **Add-on URL slug** - Set to `price-helper-for-iherb` (currently AMO-assigned hash URL)
 - [ ] **Summary** - Enter the text from the Summary section below (AMO currently shows the manifest description)
 - [ ] **Description** - Enter the text from the Description section below (currently "None" on AMO)
+- [ ] **Icon** - Upload the 128px PNG listing icon from the Icons section below
 - [ ] **Tags** - Enter the tags from the Tags section below (currently "None" on AMO)
 
 ## Name
@@ -50,7 +94,7 @@ Fields that must be set on the AMO Developer Hub before or at public release.
 Price Helper for iHerb
 
 ## XPI file name
-price_helper_iherb_beta_0.3.5.1.xpi
+price_helper_iherb_beta_0.3.6.1.xpi
 
 ## Add-on URL (slug)
 
@@ -66,7 +110,7 @@ Automatically calculates and displays unit prices for supplements on iHerb.com. 
 
 Price Helper for iHerb adds a small unit price badge next to every qualifying product on iHerb.com listing and search pages. If a bottle of 120 capsules costs $18.00, you'll see **$0.15/unit** right on the tile - no clicking into the product page required.
 
-**Color-coded value indicators**
+**Color coded value indicators**
 
 Each badge includes a colored dot that shows how a product's unit price compares to others in the same category:
 
@@ -78,7 +122,7 @@ The range improves as you browse: visiting more pages in the same category adds 
 
 **What it detects**
 
-The extension identifies pill-like products. Products that aren't sold by count (powders, liquids, creams) are left untouched.
+The extension identifies pill and capsule like products. Products that aren't sold by count (powders, liquids, creams) are left untouched.
 
 **Lightweight and private**
 
@@ -99,21 +143,26 @@ AMO tags are a fixed checkbox list (not free-form). Select from the available op
 - [x] shopping
 - [ ] privacy (optional - extension collects no data, but this tag may mislead users expecting a privacy/tracker tool)
 
+## Icons
+
+AMO listing icons are separate store metadata. Upload the 128px PNG `PH` icon and let AMO resize it for the smaller listing placements.
+
+- Primary upload: `amo-icons/amo-icon-ph-128.png`
+- Generated alternates if AMO asks for explicit sizes:
+  - 32px: `amo-icons/amo-icon-32.png`
+  - 64px: `amo-icons/amo-icon-64.png`
+  - 128px: `amo-icons/amo-icon-128.png`
+
 ## Screenshots
 
 <!-- Upload actual screenshots during AMO submission for full release -->
 <!-- Recommended size: 1280×800 or similar 1.6:1 ratio. -->
+Screenshot in root directory. amo-screenshot-1280x800.png
 
-1. **Category page with badges** - A supplement category page showing several products with green, yellow, and red price badges visible.
+1. **Category page with badges** - A supplement category page showing several products with green, yellow, and red price badges visible. Include an excluded product.
    - Caption: "Price Helper badges appear automatically on listing pages."
 
-2. **Search results with badges** - A search results page showing badges on qualifying products, with non-pill products left untouched.
-   - Caption: "Only pill-form supplements get badges. Powders and liquids are skipped."
-
-3. **Close-up of badge** - Cropped view showing the badge format: colored dot + "$0.15/unit".
-   - Caption: "Color-coded dots show relative value within the supplement."
-
-## Homepage
+## Web URL
 
 https://mklimp.com/phiherb
 
@@ -144,14 +193,14 @@ If you have questions about this policy, contact support@mklimp.com.
 
 <!-- Updated each release. This populates the Releases section on AMO. -->
 
-### v0.3.5.1
+### v0.3.6.1
 
 Initial beta release.
 
-- Per-unit price badges on iHerb listing and search pages
-- Color-coded dots (green / yellow / red) based on category price range
-- Session-backed category ranges that accumulate as you browse
-- Detects capsules, tablets, softgels, gummies, lozenges, and similar forms
+- Unit price badges on iHerb listing and search pages
+- Color coded dots (green / yellow / red) based on category price range
+- Category price ranges accumulate as you browse
+- Detects many pill/capsule like forms. More coming soon.
 
 ### Notes for Beta Participants
 

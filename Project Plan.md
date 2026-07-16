@@ -91,31 +91,12 @@ Create a Firefox browser extension that automatically calculates and displays th
 
 ### 3. Technical Implementation Details
 
-#### 3.1 File Structure
-```
-iherb-extension/
-├── manifest.json
-├── config.json
-├── background.js (or background.html for service worker) **not in beta**
-├── content/
-│   ├── content.js (main content script)
-├── styles/
-│   └── inject.css (styling for price displays)
-├── icons/
-│   ├── icon-small.svg
-│   ├── icon.svg
-├── options/ **not in beta**
-│   ├── options.html
-│   └── options.js
-└── README.md
-```
-
-#### 3.2 Key Technologies
+#### 3.1 Key Technologies
 - **JavaScript**: ES6+ for content scripts
 - **CSS**: For styling injected price displays
 - **WebExtensions API**: For Firefox extension functionality
 
-#### 3.3 Versioning Policy
+#### 3.2 Versioning Policy
 - **Format**: `0.{phase}.{stage}` during pre-release development.
 - **Minor version** tracks the current project phase: Phase 1 = `0.1.x`, Phase 2 = `0.2.x`, Phase 3 = `0.3.x`, etc.
 - **Patch version** tracks the stage within that phase: Stage 1 = `x.x.1`, Stage 2 = `x.x.2`, etc.
@@ -123,15 +104,16 @@ iherb-extension/
 - `manifest.json` is the single source of truth. `content.js` reads it at runtime via `browser.runtime.getManifest().version`.
 - After Phase 9 (public release), reset to `1.0.0` and decouple versioning from the phase structure.
 
-#### 3.4 Content Script Strategy
+#### 3.3 Content Script Strategy
 - Debounce/throttle DOM queries for performance
 - Cache parsed product data to avoid redundant calculations
 - **SPA navigation**: iHerb navigates between categories and pages without a full page reload. The URL changes but the content script does not re-inject. Two signals trigger a rescan:
   - **Category switch** (e.g. CoQ10 → Vitamin B): detected by the `h1.sub-header-title` text changing.
   - **Pagination within a category** (e.g. page 1 → page 2): detected by `location.href` changing while the h1 stays the same.
-  - Both checks run inside a single MutationObserver callback on `document.body` (subtree, childList, characterData). The URL comparison piggybacks on DOM mutations that iHerb triggers when replacing product tiles after navigation. A 300ms debounce prevents redundant scans.
-  - **Future alternative - tile-level mutation detection**: If iHerb introduces content changes that don't alter the URL (e.g. infinite scroll), a scoped MutationObserver on the product grid container or a tile-identity fingerprint (tile count + first title) could detect new tiles directly. This is noisier and more fragile to DOM structure changes, so URL-based detection is preferred while it covers all current navigation patterns.
-  - **Known gap - back button / bfcache**: When the user hits the browser back button, iHerb listing pages are often restored from the Back/Forward Cache (bfcache). bfcache is a snapshot restore: `DOMContentLoaded` does not fire, the content script is not re-injected, and no DOM mutations are emitted. The existing MutationObserver never fires, so `scanProducts()` is never called and badges are absent. Two fixes are deferred to Phase 6: (1) listen for `pageshow` with `event.persisted === true` and call `scanProducts()` directly; (2) extend the observer to also trigger on new product tile nodes being added to the DOM. The second fix must be designed carefully to avoid re-introducing the race condition that the current URL/category-change guard was put in place to prevent.
+  - Both checks run inside a single MutationObserver callback on `document.body` (subtree, childList, characterData). The URL comparison piggybacks on DOM mutations that iHerb triggers during navigation.
+  - **Navigation hydration scans**: iHerb can update the URL/header before catalog tiles finish hydrating. Firefox Developer Edition testing showed that Back does produce a URL/category navigation mutation, but the first scan can run before badges can be applied to all normal listing tiles. After a navigation mutation, schedule a short scan series at 300ms, 800ms, and 1300ms. Cancel any pending delayed scans when a newer navigation mutation arrives. This keeps badges in sync for Back, category switches, and pagination without observing every tile mutation.
+  - **bfcache fallback**: Keep a `pageshow` listener for `event.persisted === true` and call `scanProducts()` after a short delay. This covers true bfcache restores where no useful navigation mutation fires.
+  - **Future alternative - tile-level mutation detection**: If iHerb introduces content changes that don't alter the URL (e.g. infinite scroll), a scoped MutationObserver on the product grid container or a tile-identity fingerprint (tile count + first title) could detect new tiles directly. This is noisier and more fragile to DOM structure changes, so URL/category based detection plus hydration scans is preferred while it covers current navigation patterns.
 
 ## Resources Needed
 - Firefox Developer Edition for testing
@@ -154,6 +136,14 @@ iherb-extension/
    - **No Unauthorized Access**: Extension only reads publicly displayed DOM elements (price, quantity) and does not bypass any site protections
    - **User Responsibility**: Users must be 18+ years old to use iHerb.com (as per Terms of Use)
    - **No Site Modification**: Extension only adds display elements, does not modify core site functionality or data
+
+### Loading the Extension in Firefox (Development)
+1. Open Firefox and navigate to URL about:debugging
+2. Click This Firefox on the left
+3. Click **"Load Temporary Add-on..."**.
+4. Select the `manifest.json` file in the `iherb-extension/` directory.
+5. Visit an iHerb category or search page (e.g. https://www.iherb.com/c/coq10).
+6. Confirm that pill-form products display a unit price badge (colored dot + `$0.XX/unit`) near the listed price.
 
 ## Implementation Phases
 
@@ -230,7 +220,7 @@ Much of the work for this phase happens in the mklimp-site repo. Tracking high l
 - [x] Include known issues at `https://mklimp.com/phiherb/` (see readme.md)
 - [ ] Update the "Install the Beta" section on the phiherb page: replace the "Beta release coming soon" placeholder with the direct `.xpi` download.
 - [x] Add a privacy statement on `https://mklimp.com/phiherb/`. See readme.md for content.
-- [ ] Point the website to the iHerb repository once it is populated.
+- [x] Point the website to the iHerb repository once it is populated.
 
 **Packaging & git workflow**
 - [x] Copyright. Github enough or in each file?
@@ -243,24 +233,23 @@ Much of the work for this phase happens in the mklimp-site repo. Tracking high l
     - [x] update the remote url for the local repo with `git remote set-url origin https://github.com/makmgusa/iHerbDev`. Verify with `git remote -v` from code/iHerb/iHerb directory
     - [x] Close Cursor then run `mv /home/megagrubby/Code/iHerb/iHerb /home/megagrubby/Code/iHerb/iHerbDev` and `mv /home/megagrubby/Code/iHerb /home/megagrubby/Code/iHerbDev`
   - [x] Create public `iHerb` repo on GitHub.
-- [ ] Create a `release/beta` branch in `iHerbDev` for staging releases before pushing to `iHerb`. Keep `main` as the active development branch.
-  - `release/beta` is a publication snapshot only. It is updated once per release by merging from `main` and tagging. No development happens on this branch.
+- [x] Create a `release` branch in `iHerbDev` for staging releases before pushing to `iHerb`. Keep `main` as the active development branch.
+  - `release` is a publication snapshot only. It is updated once per release by merging from `main` and tagging. No development happens on this branch.
   - Releases are manual: decide when to cut, run `web-ext build`, tag, and push to `iHerb`.
   - Version source of truth is `manifest.json` `version`. The git tag must match it exactly (e.g. `v0.3.5.1`). No other file tracks the version.
 - [x] Tag the first beta release `v0.3.5.1`. Align `manifest.json` `version` to the tag and include "Beta" in `name` so testers see it in `about:addons`.
 - [x] Add `update_url` to the beta `manifest.json` pointing to `https://mklimp.com/phiherb/updates.json` (web site item 16 must be live first). 
 - [x] Submit the extension to AMO. Follow the steps in AMO Listing.md
 - [x] AMO auto signs the unlisted extension. 
-- [ ] Provide download link to site. We are not hosting the .xpi file. There is a nice dashboard where we can see stats.
-  https://addons.mozilla.org/firefox/downloads/file/4832336/4fb4d1bb2a594911a9e4-0.3.5.1.xpi
+- [x] Once the .xpi is downloaded (see AMO Listing.md), go to the site repos and publish it.
 
 **Feedback & sharing**
 Begin this phase once the XPI is available at mklimp.com
 - [ ] Share beta via r/supplements. Ask mods first before posting (promotional/beta post requires approval).
-  - [ ] Some thoughts on the post since most of reddit dislikes iHerb. Focus on saving money. Be clear no affiliation or benefit outside of learning how to code a Firefox extension and create a personal website. If this is useful I am open to expanding it to other sites.
+  - [x] Some thoughts on the post since most of reddit dislikes iHerb. Focus on saving money. Be clear no affiliation or benefit outside of learning how to code a Firefox extension and create a personal website. If this is useful I am open to expanding it to other sites.
 - [x] Feedback channel: create a Price Helper subreddit. Created https://old.reddit.com/r/PriceHelper/
-  - [ ] Add feedback info to the extension
-  - [ ] Update README.md feedback section
+  - [x] Add feedback info to the extension
+  - [x] Update README.md feedback section
 
 **Explicitly out of scope for this phase:**
 - Options page or enable/disable toggle (Phase 8).
@@ -273,8 +262,84 @@ Begin this phase once the XPI is available at mklimp.com
 - Localization or multi-currency support (Phase 8).
 
 ### Phase 3.6 Beta Quick Wins
-- [ ] Test and release the extension for Android
 - [ ] TBD
+- [ ] Price range summary by the category name
+- [ ] Omega pills.
+- [ ] Badge size option
+- [ ] Brainstorm about filtering
+
+### Phase 3.65 AMO Listed Beta Submission
+AMO has pretty loose guidelines for extension submission. With a few small fixes/enhancements, this extension will be ready for a listed AMO beta release.
+- [x] Fix back button not displaying badges (see section 3.4 known gap for design notes).
+  - Beware the current design was created to avoid a race condition encountered during development. Documentation of this decision is lacking.
+  - Verified Back produces a URL/category navigation mutation, but iHerb hydrates catalog tiles asynchronously after the first mutation.
+  - Schedule hydration scans at 300ms, 1000ms, and 2000ms after URL/category navigation. Cancel pending delayed scans if a newer navigation mutation arrives.
+  - Keep bfcache restoration fallback by listening for `pageshow` with `event.persisted === true` and calling `scanProducts()` after a short delay.
+  - [x] Add debug panel information to aid development of the back button solution
+- [x] Exclude the newly added iHerb Live section from analysis/badges.
+  - Live products use `.product.live-item` and should not be treated as standard listing tiles.
+  - The section title area uses `div.title-container` with `span.live-title`; keep this as supporting DOM context if `.product.live-item` changes.
+  - Live section updates may explain why some badges appeared during Back testing: its own live mutations can wake the page observer while the normal listing remains partially hydrated.
+- [x] Beta flag should be part of the app so non developers can't change it.
+- [x] Keep self-hosting notes available only as a fallback procedure in `AMO Listing.md`.
+- [x] AMO listing for a public beta release
+  - [x] Capture screenshots from the final release build. See AMO Listing.md.
+  - [x] Increment the release version in `manifest.json`.
+  - [x] Review and update `README.md`: current status, install instructions, known issues, privacy text, and feedback/support links.
+  - [x] Verify `manifest.json` listing fields are correct
+  - [x] Update AMO Listing.md with listed beta version details.
+  - [x] Verify `config.json` has debug set to `off`
+  - [x] Build the AMO submission package with `web-ext` and confirm AMO validation has no errors or warnings.
+  - [x] Submit the extension to AMO as a listed beta
+- [x] Update mklimp.com for listed AMO release
+- [ ] Publish the release snapshot to the public GitHub repo using `git-publish.md`, including release tags/assets as applicable.
+
+### Phase 3.66 Jira Setup
+DUE TO SITE UPGRADE INITIATED ON 7/10/26, THE SITE SEEMS TO BE IN AN IN-BETWEEN STATE. LINKS ARE BROKEN (FOR EXAMPLE, TASKS AND VIEW ALL ITEMS ON SUMMARY PAGE). POSTPONING FOR NOW.
+
+Scrum seems ironically very structured for an Agile life cycle. This means I can use my time tested 100% successful project methods and start using Scrum terminology.
+- Phases become Epics.
+- Checklist items become Tasks.
+- Earn/burn tracking becomes estimate + time spent + % complete.
+- Weekly planning becomes a Sprint.
+- Lessons learned become a Retro.
+- Your project plan stays the strategic source of truth.
+- [x] Create Jira account and Scrum project for Price Helper for iHerb.
+- [ ] Create board columns: Backlog, Selected, In Progress, Review/Test, Done.
+- [ ] Create epics for the active near-term phases.
+- [ ] Convert Phase 3.7 Android Beta tasks into Jira issues.
+- [ ] Convert Phase 3.8 Git publish automation into Jira issues.
+- [ ] Configure time tracking fields for estimate, time spent, and remaining work.
+- [ ] Add or choose a % complete tracking method for earn/burn reporting.
+- [ ] Complete one small task using Jira from backlog to Done.
+- [ ] Review estimate vs actual time after the first Jira-managed task.
+- [ ] Decide how `Project Plan.md` and Jira stay in sync.
+
+### Phase 3.7 Android Beta
+**Target browser: Firefox Nightly for Android** (Gecko MV3 support matches desktop Firefox 142+; no code or manifest changes required).
+
+**Design decisions:**
+- No manifest or code changes expected; the existing MV3/Gecko manifest targets Firefox 142+ which aligns with Nightly.
+- Install method: sideload signed `.xpi` via "Install Extension from File" (Settings > About Firefox > tap logo 5x to unlock hidden menu). The `.xpi` must be Mozilla-signed; AMO unlisted signing satisfies this. Ref: https://extensionworkshop.com/documentation/publish/install-self-distributed/ (see "Install add-on from file on Android" section)
+- Badge layout risk: iherb.com mobile CSS may shift tile layout; badge positioning may need adjustment. If so, fix via media queries in `inject.css` - no JS changes needed.
+- If iherb.com serves different DOM on mobile, `content.js` selectors may need mobile-specific branches. Prefer selectors that handle both over UA/width detection. The smoke test will reveal whether the DOM differs or just re-flows.
+- Lazy-load behavior on mobile scroll may differ from desktop MutationObserver assumptions.
+
+**Effort estimate:** 2-4 hrs (low end if badges render cleanly; high end if layout fixes are needed).
+
+- [ ] Install Firefox Nightly on Android device
+- [ ] Test Option 1: browse directly to the hosted .xpi URL in Firefox Nightly - Firefox may prompt to install automatically
+- [ ] If Option 1 fails, use "Install Extension from File" (Settings > About Firefox > tap logo 5x) to install manually
+- [ ] Smoke test: browse iherb.com listing pages, confirm badges render
+- [ ] Note any layout or badge positioning issues (mobile CSS may differ from desktop)
+- [ ] Note any lazy-load/scroll behavior differences
+- [ ] If debugging needed: enable remote debugging (Settings > About Firefox > tap logo 5x), then open `about:debugging` on desktop Firefox
+  - Option A: USB cable - may be complicated from a VM (USB passthrough required)
+  - Option B: WiFi - no cable, but phone and VM must be on the same network
+- [ ] Document findings and follow-up tasks
+
+### Phase 3.8 Automate GIT Publish
+- [ ] Convert git-publish.md to git commands.
 
 ### Phase 4: Enhanced Detection
 - [ ] Handle multiple quantity options on listing pages (products with +More Options)
@@ -291,15 +356,11 @@ Begin this phase once the XPI is available at mklimp.com
 - [ ] Enhance error handling and fallbacks
 - [ ] Optimize performance (reduce DOM queries, use caching)
 - [ ] Test across different iherb.com page types
+- [ ] If criteria are selected from the left panel, use the price range for the criteria results (url does change for additional criteria)
 - [ ] Handle edge cases (missing data, parsing errors)
 - [ ] Implement keyword configuration loading and promotion flow (candidate -> approved -> active) so pill matching is no longer hardcoded
 - [ ] calculate unit price for "see in cart" items. The price is crossed out in product listing pages. Different field than the extension currently uses.
-- [ ] Fix back button not displaying badges (see section 3.4 known gap for design notes).
-  - Beware the current design was created to avoid a race condition encountered during development. Documentation of this decision is lacking.
-  - Handle bfcache restoration by listening for `pageshow` with `event.persisted === true` and calling `scanProducts()`.
-  - Extend the observer to also trigger when new product tiles are added to the DOM, without re-introducing the race condition the current URL/category-change guard prevents.
 - [ ] Scan summary debug info.
-- [ ] Beta flag should be part of the app so non developers can't change it.
 
 ### Phase 7: Product Detail Pages (Optional - Lower Priority)
 - [ ] Extract price and quantity from product detail pages
@@ -321,13 +382,10 @@ Begin this phase once the XPI is available at mklimp.com
 - [ ] Test with various pill formats and edge cases
 - [ ] Performance testing
 - [ ] User acceptance testing
-- [ ] Prepare for Firefox Add-ons store submission
-  - [ ] Update AMO Listing.md with final version details
-  - [ ] Capture screenshots. See AMO Listing.md
 - [ ] Create documentation
 - [ ] Update extension version to 1.0.0
 - [ ] Consider email for full release. Not used during beta.
-- [ ] Submit extension to AMO
+- [ ] Submit the non-beta 1.0 update to AMO
 - [ ] Update all relevant mklimp.com web pages
   - [ ] Update web page to remove Beta from the name
   - [ ] The project page, support page and extension update page

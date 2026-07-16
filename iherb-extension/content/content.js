@@ -10,6 +10,30 @@ const VERSION = browser.runtime.getManifest().version;
 let debug = false;
 let beta = false;
 
+// Debug telemetry for the optional panel shown when config.json enables debug.
+const debugScanTelemetry = {
+  nextScanReason: "direct",
+  lastScanReason: "not run",
+  lastScanAt: "n/a",
+  scanCount: 0,
+  bodyMutationBatches: 0,
+  navigationMutationBatches: 0,
+  pageshowCount: 0,
+  pageshowPersistedCount: 0,
+  lastEventDeltas: {
+    bodyMutationBatches: 0,
+    navigationMutationBatches: 0,
+    pageshowCount: 0,
+    pageshowPersistedCount: 0,
+  },
+  previousEventTotals: {
+    bodyMutationBatches: 0,
+    navigationMutationBatches: 0,
+    pageshowCount: 0,
+    pageshowPersistedCount: 0,
+  },
+};
+
 // Optional prefix modifiers (e.g. "vegan", "chewable", "vegetarian").
 const PILL_UNIT_PREFIXES =
   "(?:veg(?:gie)?\\s+|vegetable\\s+|vegetarian\\s+|vegan\\s+|chewable\\s+|liquid\\s+|bisected\\s+|super\\s*food\\s+|rapid\\s+release\\s+)?";
@@ -341,11 +365,116 @@ class Product {
 }
 
 /**
-* CSS selector that roughly matches product tiles on iHerb listing pages.
-* Using `.product-cell` as a general container works for many layouts and
-* can be updated in later phases if the DOM structure changes. 
-*/
+ * CSS selector that roughly matches product tiles on iHerb listing pages.
+ * Using `.product-cell` as a general container works for many layouts and
+ * can be updated in later phases if the DOM structure changes.
+ */
 const productTileSelector = ".product-cell, .product-inner, .product";
+const excludedProductTileSelector = ".product.live-item";
+const navigationHydrationScanDelaysMs = [300, 800, 1300];
+
+/**
+ * Identify product-looking cards that belong to non-listing widgets.
+ * iHerb Live cards share `.product` but should not affect listing ranges.
+ * @param {HTMLElement} productTile
+ * @returns {boolean}
+ */
+function isExcludedProductTile(productTile) {
+  let excluded = false;
+
+  if (productTile.closest(excludedProductTileSelector)) {
+    excluded = true;
+  }
+
+  return excluded;
+}
+
+/**
+ * Return only product tile roots that should participate in listing scans.
+ * @returns {HTMLElement[]}
+ */
+function getScannableProductTiles() {
+  const tiles = [];
+
+  for (const productTile of document.querySelectorAll(productTileSelector)) {
+    if (
+      productTile instanceof HTMLElement &&
+      !isExcludedProductTile(productTile)
+    ) {
+      tiles.push(productTile);
+    }
+  }
+
+  return tiles;
+}
+
+/**
+ * Note why the next scanProducts() call is expected for debug-panel telemetry.
+ * @param {string} reason
+ */
+function noteNextScanReason(reason) {
+  debugScanTelemetry.nextScanReason = reason;
+}
+
+/**
+ * Record scan timing for the debug panel without changing scan behavior.
+ */
+function recordDebugScanStart() {
+  debugScanTelemetry.lastEventDeltas.bodyMutationBatches =
+    debugScanTelemetry.bodyMutationBatches -
+    debugScanTelemetry.previousEventTotals.bodyMutationBatches;
+  debugScanTelemetry.lastEventDeltas.navigationMutationBatches =
+    debugScanTelemetry.navigationMutationBatches -
+    debugScanTelemetry.previousEventTotals.navigationMutationBatches;
+  debugScanTelemetry.lastEventDeltas.pageshowCount =
+    debugScanTelemetry.pageshowCount -
+    debugScanTelemetry.previousEventTotals.pageshowCount;
+  debugScanTelemetry.lastEventDeltas.pageshowPersistedCount =
+    debugScanTelemetry.pageshowPersistedCount -
+    debugScanTelemetry.previousEventTotals.pageshowPersistedCount;
+  debugScanTelemetry.previousEventTotals.bodyMutationBatches =
+    debugScanTelemetry.bodyMutationBatches;
+  debugScanTelemetry.previousEventTotals.navigationMutationBatches =
+    debugScanTelemetry.navigationMutationBatches;
+  debugScanTelemetry.previousEventTotals.pageshowCount =
+    debugScanTelemetry.pageshowCount;
+  debugScanTelemetry.previousEventTotals.pageshowPersistedCount =
+    debugScanTelemetry.pageshowPersistedCount;
+  debugScanTelemetry.lastScanReason = debugScanTelemetry.nextScanReason;
+  debugScanTelemetry.lastScanAt = new Date().toLocaleTimeString();
+  debugScanTelemetry.scanCount += 1;
+  debugScanTelemetry.nextScanReason = "direct";
+}
+
+/**
+ * Clear pending delayed scans from a superseded navigation.
+ * @param {number[]} scanTimeouts
+ */
+function clearScheduledScans(scanTimeouts) {
+  for (const scanTimeout of scanTimeouts) {
+    clearTimeout(scanTimeout);
+  }
+
+  scanTimeouts.length = 0;
+}
+
+/**
+ * iHerb can update URL/header before catalog tiles finish hydrating.
+ * Follow-up scans keep badges in sync without observing every tile mutation.
+ * @param {number[]} scanTimeouts
+ * @param {string} reasonPrefix
+ */
+function scheduleNavigationHydrationScans(scanTimeouts, reasonPrefix) {
+  clearScheduledScans(scanTimeouts);
+
+  for (const delay of navigationHydrationScanDelaysMs) {
+    const scanTimeout = setTimeout(() => {
+      noteNextScanReason(`${reasonPrefix} ${delay}ms`);
+      scanProducts();
+    }, delay);
+    scanTimeouts.push(scanTimeout);
+  }
+}
 
 /**
  * Return the page element that labels the current listing.
@@ -406,12 +535,25 @@ function renderDebugPanel(category) {
   const highFloor = hasRange ? (low + rangeSpan * 0.75).toFixed(4) : "-";
 
   const fmt = (v) => (v != null ? v.toFixed(4) : "null");
+  const productLinks = document.querySelectorAll(
+    "a.absolute-link.product-link",
+  ).length;
+  const tiles = document.querySelectorAll(productTileSelector).length;
+  const scannableTiles = getScannableProductTiles().length;
+  const badges = document.querySelectorAll(".iherb-unit-price-badge").length;
+  const liveExcluded = document.querySelectorAll(
+    excludedProductTileSelector,
+  ).length;
 
   panel.textContent = [
     `v${VERSION}`,
     `Category: "${category.name}"`,
     `lowPrice: ${fmt(low)}  |  highPrice: ${fmt(high)}`,
     `Low range: ≤ ${lowCeil}  |  Mid range: ${lowCeil} – ${highFloor}  |  High range: ≥ ${highFloor}`,
+    `Scan: ${debugScanTelemetry.lastScanReason} @ ${debugScanTelemetry.lastScanAt} (#${debugScanTelemetry.scanCount})`,
+    `Counts: links ${productLinks} | tiles ${tiles} | scannable ${scannableTiles} | badges ${badges} | live excluded ${liveExcluded}`,
+    `Events total: body mutations ${debugScanTelemetry.bodyMutationBatches} | nav mutations ${debugScanTelemetry.navigationMutationBatches} | pageshow ${debugScanTelemetry.pageshowCount} | persisted ${debugScanTelemetry.pageshowPersistedCount}`,
+    `Events latest: body mutations +${debugScanTelemetry.lastEventDeltas.bodyMutationBatches} | nav mutations +${debugScanTelemetry.lastEventDeltas.navigationMutationBatches} | pageshow +${debugScanTelemetry.lastEventDeltas.pageshowCount} | persisted +${debugScanTelemetry.lastEventDeltas.pageshowPersistedCount}`,
   ].join("  ·  ");
 }
 
@@ -421,6 +563,8 @@ function renderDebugPanel(category) {
  */
 function scanProducts() {
   try {
+    recordDebugScanStart();
+
     const headerNode = getHeaderNode();
     const rawCategoryName = headerNode
       ? getCategoryName(headerNode)
@@ -432,10 +576,7 @@ function scanProducts() {
     
     // Pass 1: build products for each qualifying tile.
     const pageEntries = [];
-    for (const productTile of document.querySelectorAll(productTileSelector)) {
-      if (!(productTile instanceof HTMLElement)) {
-        continue;
-      }
+    for (const productTile of getScannableProductTiles()) {
       const tileProduct = Product.scanTile(productTile, category);
       if (!tileProduct) {
         productTile.querySelector(".iherb-unit-price-badge")?.remove();
@@ -468,15 +609,18 @@ function scanProducts() {
  * Detects two kinds of navigation that don't re-inject the content script:
  *  - Category switch: h1 title text changes (e.g. CoQ10 → Vitamin B).
  *  - Pagination: URL changes while h1 stays the same (e.g. page 1 → 2).
- * Both checks piggyback on the DOM mutations iHerb triggers when swapping
- * product tiles, so no additional polling or listeners are needed.
+ * Both checks piggyback on DOM mutations that iHerb triggers during navigation.
+ * iHerb can hydrate catalog tiles after the first mutation, so scans are
+ * scheduled in a short series rather than as a single debounce.
  */
 function observePageChanges() {
   let lastCategoryText = (getHeaderNode()?.textContent || "").trim();
   let lastUrl = location.href;
-  let updateTimeout;
+  const hydrationScanTimeouts = [];
 
   const observer = new MutationObserver(() => {
+    debugScanTelemetry.bodyMutationBatches += 1;
+
     const currentText = (getHeaderNode()?.textContent || "").trim();
     const currentUrl = location.href;
 
@@ -494,8 +638,11 @@ function observePageChanges() {
       return;
     }
 
-    clearTimeout(updateTimeout);
-    updateTimeout = setTimeout(scanProducts, 300);
+    debugScanTelemetry.navigationMutationBatches += 1;
+    scheduleNavigationHydrationScans(
+      hydrationScanTimeouts,
+      "mutation url/category",
+    );
   });
 
   if (!document.body) {
@@ -506,6 +653,27 @@ function observePageChanges() {
     childList: true,
     subtree: true,
     characterData: true,
+  });
+}
+
+/**
+ * Re-scan when browser back/forward restores the page from bfcache.
+ * DOMContentLoaded and MutationObserver callbacks do not reliably fire then.
+ */
+function observeBackForwardCacheRestores() {
+  let restoreTimeout;
+
+  window.addEventListener("pageshow", (event) => {
+    debugScanTelemetry.pageshowCount += 1;
+
+    if (!event.persisted) {
+      return;
+    }
+
+    debugScanTelemetry.pageshowPersistedCount += 1;
+    noteNextScanReason("pageshow persisted");
+    clearTimeout(restoreTimeout);
+    restoreTimeout = setTimeout(scanProducts, 300);
   });
 }
 
@@ -536,7 +704,8 @@ async function loadConfig() {
 async function init() {
   const config = await loadConfig();
   debug = config.debug === true;
-  beta = config.beta === true;
+  // previously in config.json. Moved to code so developers absolutely control the beta flag
+  beta = true; // TODO: Remove this before release.
 
   if (beta) {
     console.log(`[iHerb UnitPrice Beta v${VERSION}]`);
@@ -550,8 +719,10 @@ async function init() {
   }
 
   Category.restoreFromSession();
+  noteNextScanReason("init");
   scanProducts();
   observePageChanges();
+  observeBackForwardCacheRestores();
 }
 
 init();

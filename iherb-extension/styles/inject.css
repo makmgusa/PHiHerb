@@ -43,7 +43,7 @@
   max-width: 100%;
 }
 
-/* Beta marker appended inside the badge when config.beta is true */
+/* Beta marker appended inside the badge when beta is true */
 .iherb-beta-marker {
   font-size: 9px;
   color: #999;
