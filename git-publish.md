@@ -4,10 +4,10 @@ Manual release procedure for pushing a signed build to GitHub.
 Run this after a new version is approved by AMO
 
 For the first run of this procedure, everything will be executing either in the GIT web interface or in the Cursor interface.
-Once the procedure is accurate and successful, it will be converted into a script (see phase 3.6 of Project Plan.md).
+Once the procedure is accurate and successful, it will be converted into a script (see phase 3.8 of Project Plan.md).
 
-Version source of truth: `manifest.json` `version` field (e.g. `0.3.6.1`).
-Git tag must match exactly: `v0.3.6.1`.
+Version source of truth: `manifest.json` `version` field (e.g. `1.0.0`).
+Git tag must match exactly: `v1.0.0`.
 ALL files are moved from the development repo to the release repo. Nothing is sensitive.
 
 ---
@@ -18,18 +18,18 @@ ALL files are moved from the development repo to the release repo. Nothing is se
 
 - [ ] **Create or reset `release` from the version's commit:** 
   - On GitHub, go to the `iHerbDev` repo main page
+  - If `release` already exists: delete it first under GitHub > Branches
   - click the commit count link just above the file list (e.g. "47 commits") 
   - find the target commit > click the `<>` (Browse files) button 
-  - If `release` already exists: delete it first under GitHub > Branches
   - from the branch dropdown at top-left, type `release` and select "Create branch: release from this commit."
 
 - [ ] **Tag the release commit:** 
   - On GitHub, go to the `iHerbDev` repo > Releases > "Create a new release"
-  - "Choose a tag" > type `vX.X.X.X`
+  - "Choose a tag" > type `vX.X.X`
   - set target to the `release` branch
-  - set title to `vX.X.X.X`
+  - set title to `vX.X.X`
   - fill in the description
-  - Choose pre-release since this is a beta
+  - Choose release (pre-release for beta)
   - Publish release button
 
 ---
@@ -49,11 +49,14 @@ The public repo holds one clean commit per release. No development history is ex
 
 - [ ] **Open this procedure in a browser tab:** 
   - On GitHub, go to the `iHerbDev` repo > main branch > `git-publish.md` > open in a new tab. Keep it open -- switching to the release branch will revert this file locally.
+  - From this point forward, follow the git-publish procedure in the browser tab. 
+  - If changes are needed, take note outside of Cursor and update this procedure once git-publish is complete
 
 - [ ] **Switch iHerbDev to the release branch:** 
+This was recently revised. The goal is to update the local repository with the Release tagged branch that was generated on the git site. Easiest verification is to look at manifest.json that should have the latest version. Examine another file unique to the release branch.
   - In Cursor, click any file in the `iHerbDev` repo to make it the active repo.
-  - In Cursor Source Control, open the `...` menu and select **Fetch** to pull the remote `release` branch locally.
   - Click the branch name in the status bar (bottom left) and select `release`.
+  - In Cursor Source Control, open the `...` menu and select **Fetch** to pull the remote `release` branch locally.
 
 - [ ] **Replace all files with the release snapshot:** In a terminal:
   ```
@@ -63,17 +66,18 @@ The public repo holds one clean commit per release. No development history is ex
   ```
 
 - [ ] **Commit the iHerb snapshot:** 
+  - Switch Cursor to the iHerb repo.
   - In Cursor Source Control for the `iHerb` window, click the Commit button.
   - Click Yes to stage all changes.
-  - type `Release vX.X.X.X` then click the checkmark (Commit). 
+  - type `Release vX.X.X` then click the checkmark (Commit). 
   - Sync the `iHerb` branch
 
 - [ ] **Create the iHerb GitHub release:** 
   - On GitHub, go to the `iHerb` repo > Releases > "Create a new release"
-  - "Choose a tag" > type `vX.X.X.X` > target: `main`
-  - Title: `vX.X.X.X` 
+  - "Choose a tag" > type `vX.X.X` > target: `main`
+  - Title: `vX.X.X` 
   - Release notes > short summary of the release. Refer to README.md for full info. 
-  - Pre-release for all beta releases.
+  - Choose release (pre-release for beta)
   - Under "Attach binaries", drag and drop the signed `.xpi` file downloaded from AMO.
   - Publish Release.
 
@@ -86,7 +90,7 @@ The public repo holds one clean commit per release. No development history is ex
 
 ## Verify
 
-- [ ] Tag `vX.X.X.X` appears under Releases on both GitHub repos
+- [ ] Tag `vX.X.X` appears under Releases on both GitHub repos
 - [ ] `iHerb` release includes the signed `.xpi` as a downloadable asset
 - [ ] `iHerb` repo shows only one commit (or one per prior release) with no development history
 

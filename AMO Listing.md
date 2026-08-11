@@ -2,24 +2,24 @@
 
 Content for the Firefox Add-ons (addons.mozilla.org) listing.
 AMO description, privacy policy, and review replies support Markdown.
-Summary is plain text, 250 character max.
 
 Reference: https://extensionworkshop.com/documentation/develop/create-an-appealing-listing/
 
 ---
 
-## Listed Beta Release Procedure
+## Listed Release Procedure
 
-Use this procedure for a public AMO beta release. Version source of truth is `iherb-extension/manifest.json`.
+Use this procedure for a public AMO release. Version source of truth is `iherb-extension/manifest.json`.
 
 1. Increment and verify release version:
    - Increment the version in `iherb-extension/manifest.json`.
    - Update the XPI file name section in this document.
-   - Update the Version Details section in this document.
    - Confirm planned git tags/releases match the `manifest.json` version exactly.
 
 2. Review release documentation:
    - Review `README.md` for current status, install instructions, known issues, privacy text, and feedback/support links.
+   - Ensure `README.md` contains a good summary of the changes included in the latest version. Maintain info for the last 2-3 releases in this document.
+   - Ensure `CHANGELOG.md` contains all release history (items migrate from `README.md` to `CHANGELOG.md`).
    - Confirm this document's listing fields still match the release behavior.
 
 3. Verify release config:
@@ -39,7 +39,7 @@ Use this procedure for a public AMO beta release. Version source of truth is `ih
    - Use the final release build so screenshots match the submitted behavior.
    - Use the screenshot list in the Screenshots section below.
 
-6. Submit the extension as a listed beta:
+6. Submit the extension as listed:
    - Go to https://addons.mozilla.org/en-US/developers/
    - Choose listed distribution.
    - Upload the `.zip` file created by `web-ext build`.
@@ -51,15 +51,28 @@ Use this procedure for a public AMO beta release. Version source of truth is `ih
    - Upload screenshots to the Developer Hub
    - Upload 128x128 icon to the Developer Hub
 
-7. Publish the public GitHub release snapshot:
+7. Download the XPI for upload with the GitHub release
+  - Go to https://addons.mozilla.org/en-US/developers/ and open the extension from My Add-ons.
+  - Click **Edit Product Page** > **Manage Status & Versions** > click the version number.
+  - In the **Files** row, hover the `.xpi` link and copy the URL. It will look like:
+    `https://addons.mozilla.org/firefox/downloads/file/XXXXXXX/filename.xpi`
+  - Insert `/type:attachment/` after the file number to force a download instead of install:
+    `https://addons.mozilla.org/firefox/downloads/file/XXXXXXX/type:attachment/filename.xpi`
+  - Paste that URL into the address bar and the file will download.
+  - Rename the file if desired. See the XPI file name section.
+
+8. Publish the public GitHub release snapshot:
    - Follow `git-publish.md` to copy the final release snapshot from `iHerbDev` to the public `iHerb` repo.
    - Create matching release tags/assets where the procedure calls for them.
    - Verify the public repo matches the exact version submitted to AMO.
 
+9. Publish a release post on /r/PriceHelper.
+  - Use the update info from README.md
+
 
 ## If Self Hosting Is Needed
 
-Use this fallback procedure if the listed beta path is blocked and the extension needs to be signed by AMO for self distribution.
+Use this fallback procedure if the extension needs to be signed by AMO for self distribution.
 
 - Submit the extension as **unlisted**:
   - Go to https://addons.mozilla.org/en-US/developers/ and choose self distribution.
@@ -94,17 +107,16 @@ Fields that must be set on the AMO Developer Hub before or at public release.
 Price Helper for iHerb
 
 ## XPI file name
-price_helper_iherb_beta_0.3.6.1.xpi
+price_helper_iherb_1.0.0.xpi
 
 ## Add-on URL (slug)
 
 `price-helper-for-iherb`
 
 ## Summary (250 chars max)
-
 Automatically calculates and displays unit prices for supplements on iHerb.com. Includes color-coded badges so you can spot the best value at a glance.
 
-## Description
+## Description 
 
 **The unit price, right where you need it.**
 
@@ -129,7 +141,7 @@ The extension identifies pill and capsule like products. Products that aren't so
 - Runs only on iherb.com - no background activity on other sites
 - Collects and transmits zero data
 - No accounts, no analytics, no tracking
-- Open source
+- [Open source](https://github.com/makmgusa/iHerb)
 
 ## Categories
 
@@ -141,7 +153,6 @@ The extension identifies pill and capsule like products. Products that aren't so
 AMO tags are a fixed checkbox list (not free-form). Select from the available options:
 
 - [x] shopping
-- [ ] privacy (optional - extension collects no data, but this tag may mislead users expecting a privacy/tracker tool)
 
 ## Icons
 
@@ -168,7 +179,7 @@ https://mklimp.com/phiherb
 
 ## Support Email - optional
 
-empty for Beta. May add one later.
+empty for now. May add one later.
 
 ## Support Website
 
@@ -191,18 +202,9 @@ If you have questions about this policy, contact support@mklimp.com.
 
 ## Version Details (Release Notes)
 
-<!-- Updated each release. This populates the Releases section on AMO. -->
+<!-- Updated each release. This populates the Releases section on AMO. Pull from README.md -->
 
-### v0.3.6.1
-
-Initial beta release.
-
-- Unit price badges on iHerb listing and search pages
-- Color coded dots (green / yellow / red) based on category price range
-- Category price ranges accumulate as you browse
-- Detects many pill/capsule like forms. More coming soon.
-
-### Notes for Beta Participants
+### Usage Notes
 
 This extension injects Price Helper info on iherb.com pages only. It reads publicly visible product names and prices from the page, calculates a unit price, and displays Price Helper info near each qualifying product tile. No network requests are made by the extension. No data is collected or transmitted.
 

@@ -1,10 +1,15 @@
-## Price Helper for iHerb Beta
+## Price Helper for iHerb
 
-A Firefox WebExtension that calculates and displays unit prices for pill like supplements on https://www.iherb.com. 
+A Firefox extension that adds unit price badges to iHerb.com listing and search pages so you can compare supplement prices at a glance.
 
-### Current Status: Public Beta
+### Latest Updates
 
-The extension works on listing and search pages with data storage keeping history for the entirety of the tab duration.
+**Version 1.0.0**
+- Greatly improved product matching for countable supplement formats including softgels, coated tablets, caplets, chewables and similar products.
+- Added category price range summary on listing and search pages.
+- Added a badge text size preference.
+
+See `CHANGELOG.md` for complete release history.
 
 ### What It Does
 
@@ -30,9 +35,12 @@ The extension works on listing and search pages with data storage keeping histor
 ### File Overview
 
 - `iherb-extension/manifest.json` - WebExtension manifest (Manifest V3, Firefox).
-- `iherb-extension/config.json` - Runtime flags.
-- `iherb-extension/content/content.js` - Content script: tile scanning, price parsing, unit price calculation, badge rendering, SPA navigation detection.
-- `iherb-extension/styles/inject.css` - Styling for unit price badges, color-coded dots, and the beta marker.
+- `iherb-extension/config.json` - Developer debug setting for local troubleshooting.
+- `iherb-extension/content/content.js` - Content script for page scanning, price parsing, unit price calculation, badge rendering, and navigation handling.
+- `iherb-extension/shared/product-matching.js` - Shared product quantity and supplement form matching rules.
+- `iherb-extension/shared/badge-size.js` - Shared badge size preference defaults and storage helpers.
+- `iherb-extension/preferences/preferences.css` - Firefox extension preferences page for badge text size.
+- `iherb-extension/styles/inject.css` - Styling for unit price badges, color-coded dots, category range badges, and badge sizes.
 - `iherb-extension/icons/` - Extension icons used by Firefox.
 
 ### Installation
@@ -40,7 +48,7 @@ Install the extension from the Firefox Extensions and Themes menu. If you are ha
 
 ### Privacy
 - This extension collects no data. It reads product, price and quantity information from the iHerb site and then adds Price Helper info near that price.
-- Firefox labels the https://www.iherb.com content permission as accessing "your" data. This is standard boilerplate for any extension that reads a site's page content. No personal data is accessed or transmitted. The full source is available on GitHub.
+- Firefox labels the https://www.iherb.com content permission as accessing "your" data. This is standard boilerplate for any extension that reads a site's page content. No personal data is accessed or transmitted. The full source is available at https://github.com/makmgusa/iHerb.
 
 ### Feedback
 

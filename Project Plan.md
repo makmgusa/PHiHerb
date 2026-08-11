@@ -11,13 +11,23 @@ Create a Firefox browser extension that automatically calculates and displays th
 - Note: iherb.com already displays unit price on product detail pages (with some calculation inaccuracies that can be addressed later)
 - Provide a seamless, non-intrusive user experience
 
+## Important Documents and Lifecycle
+- `Project Plan.md` is the source of truth for planned project deliverables and phase scope.
+- `Task List.md` holds project-related topics that do not have a clear deliverable, potential project items, investigations, and cross-project items until they can be added to the appropriate project plan.
+  - When a `Task List.md` item becomes defined enough to have a deliverable, it moves to `Project Plan.md` and is marked complete on `Task List.md`.
+- `README.md` describes the current development state and keeps recent update notes for the latest 2-3 releases.
+- `CHANGELOG.md` contains completed release history. After a release is complete, finalized update notes are copied from `README.md` to `CHANGELOG.md`.
+- `AMO Listing.md` contains Firefox Add-ons listing copy, submission procedure, screenshots, privacy text, and AMO-specific release checklist items.
+- `git-publish.md` contains the procedure for publishing the final release snapshot to the public GitHub repository. This moves all resources from the iHerbDev repo to the iHerb repo.
+- `tools/product-name-audit/Product Name Audit Plan.md` is a historical record of the Playwright audit experiment only. Do not use it for forward planning. Unmatched product-name collection is Phase 3.66 in this document.
+
 ## Technical Requirements
 
 ### 1. Extension Architecture
 - **Manifest Version**: Use Manifest V3 (current Firefox standard)
 - **Content Scripts**: Inject scripts into iherb.com pages to modify DOM
 - **Background Script**: Handle extension lifecycle and potential data storage **not in beta**
-- **Options Page**: Optional settings page for user preferences **not in beta**
+- **Preferences Page**: User preferences via Firefox `options_ui` (labeled Preferences). Started in Phase 3.65 with badge size; expand later in Phase 8. Preferences UI uses system colors so it follows Firefox light/dark mode.
 - **Web page for hosting** Host xpi file and extension updates on mklimp.com
 - https://extensionworkshop.com/documentation/publish/add-on-policies/
 - https://extensionworkshop.com/documentation/develop/create-an-appealing-listing/
@@ -56,8 +66,9 @@ Create a Firefox browser extension that automatically calculates and displays th
   - Product category identification
   
 #### 2.3.1 Pill Keyword Backlog (for future automation) **not in beta**
-- Maintain log of unmatched products for use in automating the addition of new prefixes and suffixes
-- Per mozilla, all transmitted data must be encrypted.
+- Maintain a log of unmatched products for use in adding new quantity prefixes and suffixes.
+- Phase 3.66 collects unmatched names inside Price Helper during manual browsing (local export only).
+- Per Mozilla, all transmitted data must be encrypted. Phase 3.66 does not transmit product names.
 
 #### 2.4 Price and Quantity Extraction
 - Extract product price from DOM:
@@ -115,6 +126,18 @@ Create a Firefox browser extension that automatically calculates and displays th
   - **bfcache fallback**: Keep a `pageshow` listener for `event.persisted === true` and call `scanProducts()` after a short delay. This covers true bfcache restores where no useful navigation mutation fires.
   - **Future alternative - tile-level mutation detection**: If iHerb introduces content changes that don't alter the URL (e.g. infinite scroll), a scoped MutationObserver on the product grid container or a tile-identity fingerprint (tile count + first title) could detect new tiles directly. This is noisier and more fragile to DOM structure changes, so URL/category based detection plus hydration scans is preferred while it covers current navigation patterns.
 
+#### 3.4 Shared Product Name And Quantity Contract
+Shared matching constants live in `iherb-extension/shared/product-matching.js` so Price Helper and any leftover audit tooling use the same product-name field contract and quantity pattern.
+- Keep the shared module as the single source of truth for listing selectors, the product-name attribute, and `PILL_QUANTITY_PATTERN`.
+- Keep object-specific behavior, such as `Product.parseQuantity()`, in the consumer that owns the product object unless it is rewritten as a pure helper.
+- Quantity matching model (agreed after Phase 3.66 audit review):
+  1. Require a count number.
+  2. In `Product.parseQuantity()`, strip parenthetical text, then search only the final comma-separated phrase (the usual pill-count clause).
+  3. In that phrase: optional single-word prefix from the known prefix list, ignore any middle words, mandatory unit term from the known unit list.
+  4. Allow one optional trailing character (`.?`) after a prefix or unit word so trademark marks do not need special-casing.
+  5. Do not encode multi-word prefix phrases; middle words between the first modifier and the unit are skipped by the pattern.
+- Prefix and unit lists stay curated in `product-matching.js`. Broaden them from audit exports when needed; do not rebuild contiguous multi-word prefix phrases.
+
 ## Resources Needed
 - Firefox Developer Edition for testing
 - WebExtensions API documentation
@@ -136,6 +159,11 @@ Create a Firefox browser extension that automatically calculates and displays th
    - **No Unauthorized Access**: Extension only reads publicly displayed DOM elements (price, quantity) and does not bypass any site protections
    - **User Responsibility**: Users must be 18+ years old to use iHerb.com (as per Terms of Use)
    - **No Site Modification**: Extension only adds display elements, does not modify core site functionality or data
+3. **Unmatched product-name collection (Phase 3.66)**: Collect unmatched titles only in a local, developer-facing module.
+   - Do not transmit product names or other browsing data.
+   - Temporary capture lives in the extension. After capture, a cleanup commit removes it from `iherb-extension/` so AMO packages stay clean.
+   - Keep exported unmatched-name files internal and disposable unless a small snapshot is intentionally reviewed.
+   - The earlier Playwright audit under `tools/product-name-audit/` is paused. Do not resume automated multi-category navigation without an explicit decision and a fresh terms review.
 
 ### Loading the Extension in Firefox (Development)
 1. Open Firefox and navigate to URL about:debugging
@@ -261,14 +289,7 @@ Begin this phase once the XPI is available at mklimp.com
 - Product detail pages (Phase 7).
 - Localization or multi-currency support (Phase 8).
 
-### Phase 3.6 Beta Quick Wins
-- [ ] TBD
-- [ ] Price range summary by the category name
-- [ ] Omega pills.
-- [ ] Badge size option
-- [ ] Brainstorm about filtering
-
-### Phase 3.65 AMO Listed Beta Submission
+### Phase 3.6 AMO Listed Beta Submission
 AMO has pretty loose guidelines for extension submission. With a few small fixes/enhancements, this extension will be ready for a listed AMO beta release.
 - [x] Fix back button not displaying badges (see section 3.4 known gap for design notes).
   - Beware the current design was created to avoid a race condition encountered during development. Documentation of this decision is lacking.
@@ -292,9 +313,101 @@ AMO has pretty loose guidelines for extension submission. With a few small fixes
   - [x] Build the AMO submission package with `web-ext` and confirm AMO validation has no errors or warnings.
   - [x] Submit the extension to AMO as a listed beta
 - [x] Update mklimp.com for listed AMO release
-- [ ] Publish the release snapshot to the public GitHub repo using `git-publish.md`, including release tags/assets as applicable.
+- [x] Publish the release snapshot to the public GitHub repo using `git-publish.md`, including release tags/assets as applicable.
 
-### Phase 3.66 Jira Setup
+### Phase 3.65 Beta Quick Wins
+- [x] Price range summary by the Category name
+  - Label: `Price Helper range: $0.08-$0.31/unit` or similar. Prefer "range" over "price range" to keep the wording short while still tying the data to Price Helper.
+  - Place to the right of the category/search title on desktop so it reads as contextual metadata instead of taking over the page header. Allow it to wrap below the title only on narrow layouts.
+  - Use a subtle rounded font treatment that feels compatible with iHerb's UI. Consider green `Price Helper` text or a small green accent, but avoid a full graphic/icon for the beta unless branding work becomes a priority.
+  - Do not show low/mid/high boundary ranges in the public header for now. Keep those in debug/dev views; the product badge colors already communicate low, mid, and high.
+  - Hide the range until the current category has at least two valid observed unit prices.
+- [x] Shared product-name matching prep (completed before the Playwright audit pause)
+  - Known misses motivating collection: Fish Gelatin Softgels, Mini Softgels, Enteric Coated Softgels.
+  - [x] Create `tools/product-name-audit/` and a historical audit plan document.
+  - [x] Extract the listing product link selector, product-name attribute, `PILL_QUANTITY_PATTERN`, and its build constants from `iherb-extension/content/content.js` into a shared module.
+  - [x] Update the extension to use the shared field constants and quantity pattern without changing current behavior.
+- [x] Badge size option
+  - Values: `small` | `large` only. Default `small` (current product badge styling in `inject.css`).
+  - Scope for now: product unit-price badges (`.iherb-unit-price-badge`) only. Consider applying the same preference to the category price range badge later.
+  - UI: Preferences page (`options_ui`), labeled Preferences. One control labeled **Text Size** with Small / Large radios. Include `<meta name="color-scheme" content="light dark">` plus system colors / dark fallback so the embedded page matches Firefox light/dark mode.
+  - Persistence: `browser.storage.local` key `badgeSize`. Survives restarts without a Firefox account. (`storage.sync` later if needed.)
+  - Apply: content script reads the preference, sets `iherb-badge-size-small` or `iherb-badge-size-large` on `document.documentElement`, and listens for `storage.onChanged`. CSS selects the active size; badge markup stays the same.
+  - Large is a scaled-up variant of Small (~1.3–1.5× font, dot, padding), not a second design.
+  - Shared constants/helpers in `shared/badge-size.js` so Preferences and the content script share one source of truth.
+  - Manifest: add `storage` permission and `options_ui` pointing at the Preferences page.
+- [x] Filtering decision: category price range remains based on all eligible products observed in the page session, not the currently visible subset after iHerb checkbox filters.
+- [ ] Remove Beta. The next release is a 1.0.0 soft launch.
+  Rationale: the listing-page product is useful enough for public use, and keeping "Beta" in the add-on name or badge may deter installs. Remaining roadmap work is feature expansion and polish, not a blocker for the current core experience.
+  - [x] Update `iherb-extension/manifest.json`: set version to `1.0.0` and remove `beta` from name
+  - [x] Turn off the beta flag in `content.js`.
+  - [x] Update `README.md` from Public Beta to 1.0.0 soft launch / public release language.
+  - [x] Update `AMO Listing.md`: change the primary procedure from listed beta release to listed public release, remove beta wording, update the XPI file name, and update the 1.0.0 release notes.
+  - [x] Update `git-publish.md`: use `v1.0.0` examples and remove beta prerelease instructions for this release.
+  - [x] Updated image for AMO listing without beta badges.
+  - [x] Build and submit the 1.0.0 AMO package following AMO Listing.md
+  - [ ] Publish the matching release snapshot to the public `iHerb` repo following git-publish.md
+  - [ ] Web site placeholder: update the separate mklimp.com site project for the 1.0.0 soft launch. Remove beta wording from the project page, support page, install/update page, and release download text. Update site image to match AMO listing.
+
+### Phase 3.66 Unmatched Product Name Capture
+Collect unmatched product names while browsing iHerb so quantity matching can be improved with real misses. This replaces the paused Playwright audit and the temporary separate-extension idea. `Project Plan.md` is the only forward planning document for this work.
+
+**Why this phase exists**
+- Manual copy/paste of misses is slow.
+- Playwright multi-category collection hit Cloudflare/security challenges and is paused.
+- Price Helper already has product capture, SPA navigation, hydration rescans, Back stability, and shared quantity matching. Reuse that path instead of building another collector.
+
+**Lifecycle (two commits)**
+1. **Capture stage commit**: Temporarily enable unmatched collection inside Price Helper. Implement `unmatched-log.js`, add it to `manifest.json` content scripts, capture names, promote useful patterns, then commit this stage.
+2. **Cleanup commit**: Move `unmatched-log.js` out of `iherb-extension/` (for example under `tools/product-name-audit/` or a sibling archive path). Remove `unmatched-log.js` from `manifest.json` content scripts and remove the flagged call sites from the extension. In that same commit, keep a short note with the moved module (in the file header and/or a matching `.md`) that explains what was deleted from the extension to enable unmatched capture. The git repo is the only source of that history; AMO packages never include the collector.
+
+**Design**
+- Quantity matching stays in `content.js` / shared `product-matching.js`. Do not move match logic into the unmatched logger.
+- Put miss processing in its own file, `unmatched-log.js`, separate from `content.js`. Do not leave collection code in the extension for AMO.
+- Add `unmatched-log.js` to `manifest.json` content scripts for the capture stage; remove that entry in the cleanup commit.
+- Call `unmatched-log.js` only from the quantity path in `content.js` (`computeUnitPrice`):
+  - On `parseQuantity()` failure, call `UnmatchedLog.recordMiss(name)` to classify the miss.
+  - On success, call `UnmatchedLog.recordMatch(name)` for a matched count only. Matching itself never leaves `content.js`.
+- Classify misses into:
+  - `outOfScopeNoQuantity`: weight/volume packaging and no other quantity number.
+  - `unmatched`: everything else (parser/keyword candidates).
+- Dedupe by unique product name within the tab session (hydration rescans must not inflate counts).
+- For `unmatched` titles, extract `pillDescription` from the full observed name:
+  - Strip parenthetical text at the end of the description. This is usually some aggregate product info.
+  - Take the final comma-separated phrase.
+  - If that phrase starts with a number, remove the leading number and keep the rest as `pillDescription`.
+  - If it does not start with a number, leave `pillDescription` unset (still counted in `unmatchedCount`, but omitted from the `unmatched` list).
+  - Example: full title `California Gold Nutrition, Omega-3 Premium Fish Oil, 100 Fish Gelatin Softgels (1,100 mg per Softgel)` stays intact as the observed name; `pillDescription` is `Fish Gelatin Softgels`.
+- Aggregate `unmatched` export rows by `pillDescription` with a unique-product `count`.
+- If results are not satisfactory, refer to `audit-runner.js`. That miss classification and pill-description extraction was working.
+- Store observations in `sessionStorage` for the tab session so full page loads (content-script reinject) do not drop earlier misses. Export with Alt+Shift+U (download JSON + clipboard). No network transmission of product names.
+- Export JSON shape:
+  - `matchedCount`: unique matched product names
+  - `unmatchedCount`: unique unmatched product names (excludes out-of-scope)
+  - `unmatched`: `[{ pillDescription, count }, ...]`
+  - `outOfScopeNoQuantity`: `[productName, ...]`
+- Optional later: feed exported JSON into local reporting under `tools/product-name-audit/` for aggregation.
+- Do not resume Playwright category navigation tuning, and do not build a separate temporary capture extension, unless this phase fails to produce usable samples.
+
+**Completed before this phase**
+- [x] Shared matching module in `iherb-extension/shared/product-matching.js`.
+- [x] Menu-decode and single-category Playwright smoke work under `tools/product-name-audit/` (historical; navigation expansion paused July 22, 2026).
+
+**Tasks**
+- [x] Define a small unmatched-log API (`recordMatch`, `recordMiss`, `exportJson`).
+- [x] In `unmatched-log.js`, classify misses into `outOfScopeNoQuantity` or `unmatched`; for `unmatched`, extract `pillDescription` per the rules in the design section above.
+- [x] Implement `unmatched-log.js`: unique-name dedupe, `pillDescription` aggregation with counts, out-of-scope name list, local JSON export (Alt+Shift+U).
+- [x] Include comments that clearly explain the temporary, developer-only purpose of the module and the call-site wiring.
+- [x] Manually browse Supplements categories and export results.
+- [x] Commit the capture stage (collector in the extension, `manifest.json` content-script include, documented as temporary).
+- [x] Cleanup: move `unmatched-log.js` to `tools/manual-name-audit/`; archive capture-stage `content.js` and `manifest.json` beside it for restore; remove collector from live extension (`manifest.json` content scripts and `UnmatchedLog` call sites). Documented in the archived module header. Extension tree is AMO-clean.
+- [x] Decide quantity matching from the audit: last comma segment; require quantity; optional single-word prefix; ignore middle words; mandatory unit term; optional trailing `.?` for marks. Documented in section 3.4.
+- [x] Implement the section 3.4 quantity matching model in `product-matching.js` and `Product.parseQuantity()`.
+**Summary**
+Ran out of API and had to use Grok for this. Grok continually overcomplicates and overreaches on code changes. For instance, even though we were only changing product matching (the .js file), it decided to move the pill quantity function into this module. We never discussed this, it was completely out of scope for the change and was a terrible idea.
+I quickly had a clean design and was able to wrestle Grok to implement the proper changes. Matching is nearly 100% now. Overall, still a net positive experience. Thankfully Grok is abundant. Otherwise, the wasted resources would be maddening.
+
+### Phase 3.67 Jira Setup
 DUE TO SITE UPGRADE INITIATED ON 7/10/26, THE SITE SEEMS TO BE IN AN IN-BETWEEN STATE. LINKS ARE BROKEN (FOR EXAMPLE, TASKS AND VIEW ALL ITEMS ON SUMMARY PAGE). POSTPONING FOR NOW.
 
 Scrum seems ironically very structured for an Agile life cycle. This means I can use my time tested 100% successful project methods and start using Scrum terminology.
@@ -346,7 +459,8 @@ Scrum seems ironically very structured for an Agile life cycle. This means I can
 - [ ] Improve quantity parsing (handle various formats)
 - [ ] Optimize performance for listing pages with many products
 - [ ] Handle edge cases (missing data, parsing errors)
-- [ ] Start maintaining the Pill Keyword Backlog by logging newly observed terms
+- [ ] Continue the Pill Keyword Backlog from Phase 3.66 exports by promoting recurring unmatched terms into the quantity pattern or keyword list
+- [ ] Exclude high priced outliers for the price range. This provides a better range. Possibly use a histgram of some type.
  
 ### Phase 5: Unit price by product Robust Solution
 - [ ] Define a long-term strategy for maintaining and applying price distributions (potentially including storing aggregated price data on a web server or other persistent storage, while respecting privacy and iHerb terms).
@@ -371,11 +485,13 @@ Scrum seems ironically very structured for an Agile life cycle. This means I can
 - [ ] Update dynamically if user changes quantity/options
 
 ### Phase 8: Polish & Features
-- [ ] Add options page for user preferences
+- [ ] Expand Preferences page beyond the Phase 3.65 badge size control
+- [ ] Optionally apply badge size preference to the category price range badge
 - [ ] Support for different currencies
 - [ ] Improve visual design, extension description and UX
 - [ ] Add keyboard shortcuts (optional)
 - [ ] Support for shopping cart page (optional)
+- [ ] Clean up Price Range badge. Price Helper text rounded like iHerb. The remaining text matches the product badges.
 
 ### Phase 9: Testing & Distribution
 - [ ] Comprehensive testing across different products
@@ -435,12 +551,3 @@ Scrum seems ironically very structured for an Agile life cycle. This means I can
 - Phase 8 (Testing & Distribution): 1 week
 - **Total**: 6-7.5 weeks for core implementation (listing pages focus)
 
-## Clarifying the role of Task List versus Project Plan
-- Project Plan is the only document where project deliverables are listed
-- Task list is for: 
-  - Project related topics that do not have a clear deliverable
-  - Potential project items
-  - Investigations that require researching before something can be added to or started on the Project Plan
-  - Since this is the main project that also spawned mklimp-server and mklimp-site repos, some task items may span projects until they can be added to the appropriate Project Plan.
-- When a Task List item becomes defined enough to have a deliverable, it moves to the Project Plan and is marked complete on the Task List
-- Some completed Task List items were done prior to this clarification

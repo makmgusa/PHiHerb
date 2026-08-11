@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Required for embedded Preferences to follow Firefox light/dark mode (MDN options page). -->
+    <meta name="color-scheme" content="light dark" />
+    <title>Price Helper Preferences</title>
+    <link rel="stylesheet" href="preferences.css" />
+  </head>
+  <body>
+    <h1>Preferences</h1>
+    <fieldset>
+      <legend>Text Size</legend>
+      <label>
+        <input type="radio" name="badgeSize" value="small" />
+        Small
+      </label>
+      <label>
+        <input type="radio" name="badgeSize" value="large" />
+        Large
+      </label>
+    </fieldset>
+    <script src="../shared/badge-size.js"></script>
+    <script src="preferences.js"></script>
+  </body>
+</html>

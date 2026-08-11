@@ -1,0 +1,24 @@
+{
+  "startUrl": "https://www.iherb.com/",
+  "headless": false,
+  "navigationDelayMs": 1500,
+  "pacing": {
+    "actionDelayMsRange": {
+      "minMs": 1500,
+      "maxMs": 6500
+    }
+  },
+  "limits": {
+    "browserPages": 1,
+    "runtimeMinutes": 5
+  },
+  "inputPaths": {
+    "categoryUrlList": null
+  },
+  "outputPaths": {
+    "categoryUrlList": "cache/supplement-categories-random.json"
+  },
+  "outputOptions": {
+    "randomizeCategoryUrlList": true
+  }
+}

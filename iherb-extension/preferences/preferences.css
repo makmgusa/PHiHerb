@@ -1,0 +1,52 @@
+/* Opt into light/dark so system colors and about:addons theming work. */
+html {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 12px 16px;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  background-color: Canvas;
+  color: CanvasText;
+}
+
+h1 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+fieldset {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid ButtonBorder;
+  border-radius: 4px;
+}
+
+legend {
+  padding: 0 4px;
+  font-weight: 600;
+}
+
+label {
+  display: block;
+  margin: 6px 0;
+  cursor: pointer;
+}
+
+input[type="radio"] {
+  margin-right: 6px;
+}
+
+/* Fallback if Canvas does not resolve in the embedded options iframe. */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #1c1b22;
+    color: #fbfbfe;
+  }
+
+  fieldset {
+    border-color: #5b5b66;
+  }
+}

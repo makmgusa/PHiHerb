@@ -2,6 +2,7 @@
 // Calculates unit prices for pill/supplement products on listing pages
 // and displays color-coded badges indicating relative price within the category.
 
+// Shared matching constants are loaded before this content script.
 // Read version from manifest.json.
 const VERSION = browser.runtime.getManifest().version;
 
@@ -33,23 +34,6 @@ const debugScanTelemetry = {
     pageshowPersistedCount: 0,
   },
 };
-
-// Optional prefix modifiers (e.g. "vegan", "chewable", "vegetarian").
-const PILL_UNIT_PREFIXES =
-  "(?:veg(?:gie)?\\s+|vegetable\\s+|vegetarian\\s+|vegan\\s+|chewable\\s+|liquid\\s+|bisected\\s+|super\\s*food\\s+|rapid\\s+release\\s+)?";
-
-// Pipe separated list of recognized pill/dose words
-const PILL_UNIT_TERMS =
-  "ct|capsules?|caps?|tablets?|softgels?|soft\\s+gels?|pills?|count|caplets?|gelcaps?|gelcap|vegicaps?|vegcaps?|" +
-  "stick\\s+packs?|soft\\s+chews?|gumm(?:y|ies)|lozenges?|nuggets?|patch(?:es)?|pouches?";
-
-// Combined source: prefix group + pill words + word boundary
-const PILL_UNIT_PATTERN_SOURCE = PILL_UNIT_PREFIXES + "(" + PILL_UNIT_TERMS + ")\\b";
-
-const PILL_QUANTITY_PATTERN = new RegExp(
-  `\\b(\\d+)\\s*${PILL_UNIT_PATTERN_SOURCE}`,
-  "i",
-);
 
 /**
  * Category is the parent for all products. Name is the key.
@@ -191,10 +175,16 @@ class Product {
 
   /**
    * Parse quantity from this product's title, matching count-based units.
+   * Uses the final comma segment after stripping parentheticals (section 3.4).
    * @returns {{ quantity: number }|null}
    */
   parseQuantity() {
-    const quantityMatch = this.name.match(PILL_QUANTITY_PATTERN);
+    const searchableName = this.name
+      .replace(/\([^)]*\)/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const lastSegment = searchableName.split(",").pop().trim();
+    const quantityMatch = lastSegment.match(PILL_QUANTITY_PATTERN);
     if (!quantityMatch) {
       return null;
     }
@@ -256,10 +246,12 @@ class Product {
     try {
       /** @type {HTMLAnchorElement | null} */
       const linkElement = rootElement.querySelector(
-        "a.absolute-link.product-link",
+        PRODUCT_LINK_SELECTOR,
       );
 
-      const name = (linkElement?.getAttribute("title") || "").trim();
+      const name = (
+        linkElement?.getAttribute(PRODUCT_NAME_ATTRIBUTE) || ""
+      ).trim();
       if (!name) {
         return null;
       }
@@ -498,11 +490,50 @@ function getHeaderNode() {
  * @returns {string}
  */
 function getCategoryName(headerNode) {
-  const spanText = headerNode.querySelector("span")?.textContent;
+  const cleanHeaderNode = headerNode.cloneNode(true);
+  cleanHeaderNode.querySelector("#iherb-category-range-badge")?.remove();
+
+  const spanText = cleanHeaderNode.querySelector("span")?.textContent;
   if (spanText) {
     return spanText.replace(/["\u201C\u201D]/g, "").trim();
   }
-  return headerNode.textContent.trim();
+  return cleanHeaderNode.textContent.trim();
+}
+
+/**
+ * Render the observed category range beside the category header.
+ * @param {Category} category
+ * @param {HTMLElement|null} headerNode
+ */
+function renderCategoryRangeBadge(category, headerNode) {
+  const BADGE_ID = "iherb-category-range-badge";
+  let badgeNode = document.getElementById(BADGE_ID);
+  const low = category.lowPrice;
+  const high = category.highPrice;
+  const hasRange = low != null && high != null && high > low;
+  const searchLinkNode = document.querySelector(".sub-header-link.modernized");
+  const isSearchHeader = headerNode?.matches(".sub-sort-title.display-items");
+
+  if (!headerNode || !hasRange) {
+    badgeNode?.remove();
+    return;
+  }
+
+  if (!(badgeNode instanceof HTMLSpanElement)) {
+    badgeNode?.remove();
+    badgeNode = document.createElement("span");
+    badgeNode.id = BADGE_ID;
+  }
+
+  if (isSearchHeader) {
+    searchLinkNode.after(badgeNode);
+  } else {
+    headerNode.append(badgeNode);
+  }
+
+  badgeNode.className = "iherb-category-range-badge";
+  badgeNode.textContent = `Price Helper range: $${low.toFixed(2)}-$${high.toFixed(2)}/unit`;
+  badgeNode.title = "Price Helper observed category range";
 }
 
 /**
@@ -536,7 +567,7 @@ function renderDebugPanel(category) {
 
   const fmt = (v) => (v != null ? v.toFixed(4) : "null");
   const productLinks = document.querySelectorAll(
-    "a.absolute-link.product-link",
+    PRODUCT_LINK_SELECTOR,
   ).length;
   const tiles = document.querySelectorAll(productTileSelector).length;
   const scannableTiles = getScannableProductTiles().length;
@@ -593,6 +624,7 @@ function scanProducts() {
 
     // Persist updated category ranges so they survive full page reloads.
     Category.persistToSession();
+    renderCategoryRangeBadge(category, headerNode);
 
     if (debug) {
       renderDebugPanel(category);
@@ -698,6 +730,19 @@ async function loadConfig() {
 }
 
 /**
+ * Apply the retained badge size preference and keep it live if Preferences changes.
+ */
+async function initBadgeSize() {
+  // Apply Small immediately so badges have size CSS before storage resolves.
+  BadgeSize.apply(BadgeSize.DEFAULT);
+  const size = await BadgeSize.load();
+  BadgeSize.apply(size);
+  BadgeSize.watch((nextSize) => {
+    BadgeSize.apply(nextSize);
+  });
+}
+
+/**
  * Load config, then initialize scanning and page-change observation.
  * Waits for DOMContentLoaded if the page is still loading when config resolves.
  */
@@ -705,7 +750,7 @@ async function init() {
   const config = await loadConfig();
   debug = config.debug === true;
   // previously in config.json. Moved to code so developers absolutely control the beta flag
-  beta = true; // TODO: Remove this before release.
+  //beta = true; // TODO: Remove this before release.
 
   if (beta) {
     console.log(`[iHerb UnitPrice Beta v${VERSION}]`);
@@ -718,6 +763,7 @@ async function init() {
     );
   }
 
+  await initBadgeSize();
   Category.restoreFromSession();
   noteNextScanReason("init");
   scanProducts();

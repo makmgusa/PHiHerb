@@ -1,0 +1,37 @@
+{
+  "headless": false,
+  "limits": {
+    "browserPages": 1,
+    "categories": 2,
+    "pagesPerCategory": 1,
+    "runtimeMinutes": 15
+  },
+  "pacing": {
+    "actionDelayMsRange": {
+      "minMs": 1500,
+      "maxMs": 6500
+    },
+    "pageDwellMsRange": {
+      "minMs": 12000,
+      "maxMs": 42000
+    },
+    "betweenCategoryDelayMsRange": {
+      "minMs": 18000,
+      "maxMs": 75000
+    },
+    "scrollStepsRange": {
+      "min": 2,
+      "max": 4
+    },
+    "scrollStepDelayMsRange": {
+      "minMs": 800,
+      "maxMs": 2500
+    }
+  },
+  "inputPaths": {
+    "categoryUrlList": "cache/supplement-categories-random.json"
+  },
+  "outputPaths": {
+    "summary": "output/smoke-test-summary.json"
+  }
+}
