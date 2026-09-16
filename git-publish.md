@@ -1,13 +1,13 @@
 # Git Publish Procedure
 
 Manual release procedure for pushing a signed build to GitHub.
-Run this after a new version is approved by AMO
+Run this after a new version is loaded into both the Chrome extension store and AMO.
 
 For the first run of this procedure, everything will be executing either in the GIT web interface or in the Cursor interface.
 Once the procedure is accurate and successful, it will be converted into a script (see phase 3.8 of Project Plan.md).
 
-Version source of truth: `manifest.json` `version` field (e.g. `1.0.0`).
-Git tag must match exactly: `v1.0.0`.
+Version source of truth: `manifest.json` `version` field.
+Git tag must match exactly: `vX.X.X`.
 ALL files are moved from the development repo to the release repo. Nothing is sensitive.
 
 ---
@@ -24,12 +24,12 @@ ALL files are moved from the development repo to the release repo. Nothing is se
   - from the branch dropdown at top-left, type `release` and select "Create branch: release from this commit."
 
 - [ ] **Tag the release commit:** 
-  - On GitHub, go to the `iHerbDev` repo > Releases > "Create a new release"
+  - On GitHub, go to the `iHerbDev` repo > Releases > "Draft a new release"
   - "Choose a tag" > type `vX.X.X`
   - set target to the `release` branch
   - set title to `vX.X.X`
   - fill in the description
-  - Choose release (pre-release for beta)
+  - Choose release None (pre-release for beta)
   - Publish release button
 
 ---
@@ -53,10 +53,13 @@ The public repo holds one clean commit per release. No development history is ex
   - If changes are needed, take note outside of Cursor and update this procedure once git-publish is complete
 
 - [ ] **Switch iHerbDev to the release branch:** 
-This was recently revised. The goal is to update the local repository with the Release tagged branch that was generated on the git site. Easiest verification is to look at manifest.json that should have the latest version. Examine another file unique to the release branch.
+The goal is to update the local repository with the Release tagged branch that was generated on the git site.
   - In Cursor, click any file in the `iHerbDev` repo to make it the active repo.
-  - Click the branch name in the status bar (bottom left) and select `release`.
-  - In Cursor Source Control, open the `...` menu and select **Fetch** to pull the remote `release` branch locally.
+  - Click the branch name in the status bar (bottom left) and select `main`.
+  - In Cursor Source Control, open the `...` menu and select **Fetch**.
+  - Click the branch name in the status bar and select `release`.
+  - In Cursor Source Control, open the `...` menu and select **Pull**.
+  - Confirm `manifest.json` shows the release version.
 
 - [ ] **Replace all files with the release snapshot:** In a terminal:
   ```
@@ -73,11 +76,11 @@ This was recently revised. The goal is to update the local repository with the R
   - Sync the `iHerb` branch
 
 - [ ] **Create the iHerb GitHub release:** 
-  - On GitHub, go to the `iHerb` repo > Releases > "Create a new release"
+  - On GitHub, go to the `iHerb` repo > Releases > "Draft a new release"
   - "Choose a tag" > type `vX.X.X` > target: `main`
   - Title: `vX.X.X` 
   - Release notes > short summary of the release. Refer to README.md for full info. 
-  - Choose release (pre-release for beta)
+  - Choose release None (pre-release for beta)
   - Under "Attach binaries", drag and drop the signed `.xpi` file downloaded from AMO.
   - Publish Release.
 

@@ -17,7 +17,7 @@ Create a Firefox browser extension that automatically calculates and displays th
   - When a `Task List.md` item becomes defined enough to have a deliverable, it moves to `Project Plan.md` and is marked complete on `Task List.md`.
 - `README.md` describes the current development state and keeps recent update notes for the latest 2-3 releases.
 - `CHANGELOG.md` contains completed release history. After a release is complete, finalized update notes are copied from `README.md` to `CHANGELOG.md`.
-- `AMO Listing.md` contains Firefox Add-ons listing copy, submission procedure, screenshots, privacy text, and AMO-specific release checklist items.
+- `Extension Listing.md` contains Chrome Web Store and Firefox Add-ons listing copy, submission procedures, screenshots, privacy text, and store specific release checklist items.
 - `git-publish.md` contains the procedure for publishing the final release snapshot to the public GitHub repository. This moves all resources from the iHerbDev repo to the iHerb repo.
 - `tools/product-name-audit/Product Name Audit Plan.md` is a historical record of the Playwright audit experiment only. Do not use it for forward planning. Unmatched product-name collection is Phase 3.66 in this document.
 
@@ -113,7 +113,8 @@ Create a Firefox browser extension that automatically calculates and displays th
 - **Patch version** tracks the stage within that phase: Stage 1 = `x.x.1`, Stage 2 = `x.x.2`, etc.
 - **Beta releases** encode the beta iteration as a 4th integer: e.g. `0.3.5.1` for beta 1. Firefox's `manifest.json` `version` field only accepts up to 4 dot-separated integers and does not support semver prerelease suffixes.
 - `manifest.json` is the single source of truth. `content.js` reads it at runtime via `browser.runtime.getManifest().version`.
-- After Phase 9 (public release), reset to `1.0.0` and decouple versioning from the phase structure.
+- After the public `1.0.0` release, decouple versioning from the original phase structure.
+- Firefox and Chrome share one version. Do not maintain per-store version numbers unless a store-specific hotfix requires a temporary split, then resync on the next release.
 
 #### 3.3 Content Script Strategy
 - Debounce/throttle DOM queries for performance
@@ -140,6 +141,7 @@ Shared matching constants live in `iherb-extension/shared/product-matching.js` s
 
 ## Resources Needed
 - Firefox Developer Edition for testing
+- Chrome-family desktop browser for Phase 4 testing (chosen during that phase)
 - WebExtensions API documentation
 - Access to iherb.com for testing various product types
 - Icon design assets
@@ -173,11 +175,28 @@ Shared matching constants live in `iherb-extension/shared/product-matching.js` s
 5. Visit an iHerb category or search page (e.g. https://www.iherb.com/c/coq10).
 6. Confirm that pill-form products display a unit price badge (colored dot + `$0.XX/unit`) near the listed price.
 
+### Loading the Extension in Chrome (Development)
+Use Google Chrome Stable for first-pass Chrome testing because it is the closest local match for Chrome Web Store users. Launch Chrome with a dedicated user data directory whenever testing the extension:
+
+```bash
+nohup google-chrome --user-data-dir="$HOME/.config/iherb-chrome-test" >/dev/null 2>&1 &
+```
+devchrome alias created for this command
+
+This is a development procedure, not a one-time system setting. The command opens Chrome against an isolated test profile, detaches it from the terminal, and discards Chrome diagnostic output. Extension installs, cookies, settings, and cache persist in `~/.config/iherb-chrome-test`, but Chrome only uses that profile when launched with the `--user-data-dir` flag.
+
+1. Launch Chrome with the dedicated profile command above.
+2. Open `chrome://extensions`.
+3. Enable Developer mode.
+4. Click **"Load unpacked"**.
+5. Select the `iherb-extension/` directory.
+6. After source changes, return to `chrome://extensions` and click the extension reload button.
+
 ## Implementation Phases
 
 Guiding constraint for implementation scope:
 - **Phases 1-4 (including 3.5)**: Do not introduce external network requests or server-managed data dependencies. Keep all logic and data local to the page, browser session, or extension storage.
-- **Phase 5 and later**: External aggregation or other server-backed storage may be introduced if needed for a more robust price distribution strategy, provided privacy, reliability, and iHerb terms are respected.
+- **Phase 9 and later**: External aggregation or other server-backed storage may be introduced if needed for a more robust price distribution strategy, provided privacy, reliability, and iHerb terms are respected.
 
 ### Phase 1: Proof of Concept - Placeholder Display
 **Done**
@@ -244,9 +263,9 @@ Package the Stage 3 feature set as a unlisted signed Firefox xpi for closed beta
 **Web site**
 Much of the work for this phase happens in the mklimp-site repo. Tracking high level details here. The phiherb page at `https://mklimp.com/phiherb/` already exists with content derived from this project plan.
 - [x] Create and host `updates.json` at `https://mklimp.com/phiherb/updates.json`. **Must be live before AMO submission** because `manifest.json` references this URL via `update_url`. A skeleton file with the correct structure is enough initially; update it with the signed `.xpi` URL after signing. 
-- [ ] Host the signed `.xpi` at `https://mklimp.com/phiherb/` after receiving the signed file from AMO. Update `updates.json` to point to it.
+- [x] Host the signed `.xpi` at `https://mklimp.com/phiherb/` after receiving the signed file from AMO. Update `updates.json` to point to it.
 - [x] Include known issues at `https://mklimp.com/phiherb/` (see readme.md)
-- [ ] Update the "Install the Beta" section on the phiherb page: replace the "Beta release coming soon" placeholder with the direct `.xpi` download.
+- [x] Update the "Install the Beta" section on the phiherb page: replace the "Beta release coming soon" placeholder with the direct `.xpi` download.
 - [x] Add a privacy statement on `https://mklimp.com/phiherb/`. See readme.md for content.
 - [x] Point the website to the iHerb repository once it is populated.
 
@@ -267,9 +286,9 @@ Much of the work for this phase happens in the mklimp-site repo. Tracking high l
   - Version source of truth is `manifest.json` `version`. The git tag must match it exactly (e.g. `v0.3.5.1`). No other file tracks the version.
 - [x] Tag the first beta release `v0.3.5.1`. Align `manifest.json` `version` to the tag and include "Beta" in `name` so testers see it in `about:addons`.
 - [x] Add `update_url` to the beta `manifest.json` pointing to `https://mklimp.com/phiherb/updates.json` (web site item 16 must be live first). 
-- [x] Submit the extension to AMO. Follow the steps in AMO Listing.md
+- [x] Submit the extension to AMO. Follow the steps in `Extension Listing.md`
 - [x] AMO auto signs the unlisted extension. 
-- [x] Once the .xpi is downloaded (see AMO Listing.md), go to the site repos and publish it.
+- [x] Once the .xpi is downloaded (see `Extension Listing.md`), go to the site repos and publish it.
 
 **Feedback & sharing**
 Begin this phase once the XPI is available at mklimp.com
@@ -285,7 +304,7 @@ Begin this phase once the XPI is available at mklimp.com
 - Detailed console logging and scan summary (Phase 6).
 - Code quality audit of `scanTile` return paths and OO cleanup (Phase 6).
 - Screenshots (not required for unlisted distribution).
-- Server-side aggregation or external data (Phase 5).
+- Server-side aggregation or external data (Phase 9).
 - Product detail pages (Phase 7).
 - Localization or multi-currency support (Phase 8).
 
@@ -302,13 +321,13 @@ AMO has pretty loose guidelines for extension submission. With a few small fixes
   - The section title area uses `div.title-container` with `span.live-title`; keep this as supporting DOM context if `.product.live-item` changes.
   - Live section updates may explain why some badges appeared during Back testing: its own live mutations can wake the page observer while the normal listing remains partially hydrated.
 - [x] Beta flag should be part of the app so non developers can't change it.
-- [x] Keep self-hosting notes available only as a fallback procedure in `AMO Listing.md`.
+- [x] Keep self-hosting notes available only as a fallback procedure in `listing/Extension Listing.md`.
 - [x] AMO listing for a public beta release
-  - [x] Capture screenshots from the final release build. See AMO Listing.md.
+  - [x] Capture screenshots from the final release build. See `listing/Extension Listing.md`.
   - [x] Increment the release version in `manifest.json`.
   - [x] Review and update `README.md`: current status, install instructions, known issues, privacy text, and feedback/support links.
   - [x] Verify `manifest.json` listing fields are correct
-  - [x] Update AMO Listing.md with listed beta version details.
+  - [x] Update `Extension Listing.md` with listed beta version details.
   - [x] Verify `config.json` has debug set to `off`
   - [x] Build the AMO submission package with `web-ext` and confirm AMO validation has no errors or warnings.
   - [x] Submit the extension to AMO as a listed beta
@@ -337,17 +356,17 @@ AMO has pretty loose guidelines for extension submission. With a few small fixes
   - Shared constants/helpers in `shared/badge-size.js` so Preferences and the content script share one source of truth.
   - Manifest: add `storage` permission and `options_ui` pointing at the Preferences page.
 - [x] Filtering decision: category price range remains based on all eligible products observed in the page session, not the currently visible subset after iHerb checkbox filters.
-- [ ] Remove Beta. The next release is a 1.0.0 soft launch.
+- [x] Remove Beta. The next release is a 1.0.0 soft launch.
   Rationale: the listing-page product is useful enough for public use, and keeping "Beta" in the add-on name or badge may deter installs. Remaining roadmap work is feature expansion and polish, not a blocker for the current core experience.
   - [x] Update `iherb-extension/manifest.json`: set version to `1.0.0` and remove `beta` from name
   - [x] Turn off the beta flag in `content.js`.
   - [x] Update `README.md` from Public Beta to 1.0.0 soft launch / public release language.
-  - [x] Update `AMO Listing.md`: change the primary procedure from listed beta release to listed public release, remove beta wording, update the XPI file name, and update the 1.0.0 release notes.
+  - [x] Update `Extension Listing.md`: change the primary procedure from listed beta release to listed public release, remove beta wording, update the XPI file name, and update the 1.0.0 release notes.
   - [x] Update `git-publish.md`: use `v1.0.0` examples and remove beta prerelease instructions for this release.
   - [x] Updated image for AMO listing without beta badges.
-  - [x] Build and submit the 1.0.0 AMO package following AMO Listing.md
-  - [ ] Publish the matching release snapshot to the public `iHerb` repo following git-publish.md
-  - [ ] Web site placeholder: update the separate mklimp.com site project for the 1.0.0 soft launch. Remove beta wording from the project page, support page, install/update page, and release download text. Update site image to match AMO listing.
+  - [x] Build and submit the 1.0.0 AMO package following `Extension Listing.md`
+  - [x] Publish the matching release snapshot to the public `iHerb` repo following git-publish.md
+  - [x] Web site placeholder: update the separate mklimp.com site project for the 1.0.0 soft launch. Remove beta wording from the project page, support page, install/update page, and release download text. Update site image to match AMO listing.
 
 ### Phase 3.66 Unmatched Product Name Capture
 Collect unmatched product names while browsing iHerb so quantity matching can be improved with real misses. This replaces the paused Playwright audit and the temporary separate-extension idea. `Project Plan.md` is the only forward planning document for this work.
@@ -407,7 +426,140 @@ Collect unmatched product names while browsing iHerb so quantity matching can be
 Ran out of API and had to use Grok for this. Grok continually overcomplicates and overreaches on code changes. For instance, even though we were only changing product matching (the .js file), it decided to move the pill quantity function into this module. We never discussed this, it was completely out of scope for the change and was a terrible idea.
 I quickly had a clean design and was able to wrestle Grok to implement the proper changes. Matching is nearly 100% now. Overall, still a net positive experience. Thankfully Grok is abundant. Otherwise, the wasted resources would be maddening.
 
-### Phase 3.67 Jira Setup
+## Post-1.0 Roadmap
+
+Testing and distribution are not standalone phases after `1.0.0`. Each roadmap phase owns its own smoke testing, release notes, documentation updates, and distribution tasks when they are needed.
+
+The pre-1.0 phase constraints above are historical and do not govern these post-1.0 phase numbers.
+
+### Phase 4: Chrome Desktop Port
+Goal: get the product onto Chrome as quickly as possible. Do not expand product scope in this phase.
+
+Ship as `1.1.0` on both Firefox and Chrome so the stores stay on one shared version. Firefox `1.0.0` is already tagged and published; the Chrome-ready source is a new snapshot, so bump the minor version rather than reusing `1.0.0`.
+
+Do Chrome Web Store account/admin work in a normal browser profile or a dedicated publisher profile signed into Google, not in the isolated Chrome extension test profile.
+
+**Rationale:**
+- Chrome is the largest extension market by far, with public 2026 estimates ranging from roughly 220k-330k listed extensions and roughly 1.7B-2B+ aggregate extension installs/users across the Chrome Web Store.
+- Publishing the Chrome version early makes Price Helper available where many iHerb shoppers already use extensions.
+- The practical goal is to establish the listing, name, screenshots, support links, release process, and basic user trust under the original project.
+
+**Similar extension note (2026-08-20):**
+- Chrome Web Store has a similar extension, `Unit Price for iHerb / Smart Value Comparison` (`jbkndfaofddjidfepdmgmbphleegebjf`). The public listing shows version `1.0.9`, 10 users, no ratings, and last updated `August 9, 2026`. The public store page does not expose the original create date.
+- That extension reports broader product coverage than Price Helper currently targets: supplement dose units, solids, liquids, capsule/tablet pricing, protein pricing, package option comparison, currency detection, and Chinese/Cantonese localization.
+- Treat the other extension as related market context. Keep Price Helper's public positioning focused on its own value: listing-page pill/capsule/tablet pricing, category range context, color value indicators, no data collection, and a browser neutral listing.
+- Do not expand the `1.1.0` Chrome scope just because another extension exists. The priority remains getting a trustworthy Chrome listing live quickly, then deciding which post-Chrome improvements are worth building from actual usage and feedback.
+
+**Scope:**
+- Keep the first Chrome release as close as possible to the Firefox 1.0.0 feature set. The `1.1.0` bump is for cross-browser packaging, not new product features.
+- One source tree. Keep writing `browser.*`. Chrome now supports that namespace, so do not add `webextension-polyfill` unless testing finds a real compatibility gap. No bundler.
+- Keep one `manifest.json` at first. Do not assume Chrome accepts Firefox fields; split manifests only if Chrome Web Store validation requires it.
+- Branch in code only when a real Firefox/Chrome behavior difference appears. Preferences UI is the likely case.
+
+**Chrome Web Store Setup (do first - blocks publishing)**
+- [x] Create a Chrome Web Store developer account. Use an email that will remain available; the account email cannot be changed later. Used Proton dev account for Price Helper Google developer account.
+- [x] Enable 2-step verification on the Google account. Info in Proton Pass.
+- [x] Mail setup saved to mklimp site project. Complete this before finalizing the Chrome Web Store account.
+- [x] Pay the one time Chrome Web Store developer registration fee.
+- [x] Declare Trader vs Non-Trader in the developer dashboard. Non-Trader is the usual fit for a free hobby extension with no commercial activity; confirm at setup rather than assuming.
+
+**Dev Environment**
+- [x] Choose the Linux Chrome-family browser for local work: Google Chrome Stable. This is the closest local match for Chrome Web Store users. Use Chromium only as an optional secondary sanity check, and avoid Chrome Dev/Canary for first-pass validation because they are less representative of normal users.
+- [x] Install Google Chrome Stable.
+- [x] Follow the Chrome development loading procedure above: launch with the dedicated profile, keep it unsigned-in when practical, load `iherb-extension/`, reload after changes, open Preferences, and inspect the content-script console on an iHerb tab.
+
+**AMO Listing update**
+- [x] Rename AMO Listing.md to Extension listing.md so one document supports both environments.
+- [x] Add the support email to the AMO listing.
+
+**Chrome source updates**
+- [x] Update version to 1.1.0. Update README.md
+- [x] Update `manifest.json` for Chrome Web Store submission: check `name`, `version`, `icons`, and `description`; keep `description` at 132 characters or fewer; remove Firefox-only wording; and keep the existing `storage`, content script, and options page behavior.
+- [x] Add a 128x128 PNG extension icon to the package for Chrome. For a square icon, use 96x96 artwork with 16 pixels of transparent padding on each side. Keep SVG manifest icons only if Chrome Web Store validation accepts them.
+
+**Chrome verification**
+- [x] Load the unpacked `1.1.0` extension in the chosen Chrome-family browser.
+- [x] In Chrome, confirm category pages, search pages, SPA category switches, pagination, Back, Preferences / badge size, and that Live tiles stay excluded.
+- [x] Confirm the Chrome content script and Preferences page console output are clean enough for submission.
+- [x] Fix Chrome-only source issues found during local loading, while keeping one source tree and one `manifest.json` unless validation forces a split.
+  - [x] On the extension page, the extension does not have an icon
+  - [x] Warning that manifest key Developer is not recognized: No way to fix this without a separate manifest.json. For now, will hope it works without changes.
+  - [x] The extension Details page does not show an option for changing the text size: options are there but behind a line on the details page. Only changes after a reload. Works fine afterwords.
+  - [x] There is a lot of info in the extension Details page. Thoroughly review this content.
+
+**Firefox regression verification**
+- [x] Load the same `1.1.0` source as a temporary add-on in Firefox.
+- [x] In Firefox, repeat the Chrome smoke checks so the Chrome port does not regress the already published browser.
+- [x] Confirm any Chrome fixes did not change the Firefox Preferences experience or AMO ready manifest behavior.
+
+**Chrome listing, docs, and screenshots**
+- [x] Confirm the hosted privacy policy URL on mklimp.com meets Chrome Web Store requirements (CWS requires a public URL, not only extension text): IMO "no data" is all encompassing. No changes.
+- [x] Consolidate shared Firefox and Chrome listing copy in `Extension Listing.md`, with Chrome-specific category, single purpose, permission, privacy, and screenshot fields called out separately.
+- [x] Review the shared listing copy before submission so it stays browser neutral
+- [x] Add colored dots to Chrome extension description
+- [x] Add the required 440x280 small promotional image for Chrome Web Store: `listing/chrome-small-promo-440x280.png`.
+- [x] Update `README.md` for two-browser install, current status, and `1.1.0` release notes.
+- [x] Update `git-publish.md` for the shared `1.1.0` snapshot (Firefox and Chrome packages from the same source).
+
+**Shared release package and submissions**
+- [x] Build the store zip (`web-ext build`) from the smoke-tested `1.1.0` source.
+- [x] Submit `1.1.0` to the Chrome Web Store.
+- [x] Submit the same `1.1.0` package to AMO so Firefox stays in sync.
+- [ ] Publish the `v1.1.0` snapshot to the public GitHub repo using `git-publish.md`.
+
+**Site update (after the Chrome listing is live)**
+- [x] add #privacy tag to phiherb page for privacy statement submission.
+- [x] Update mklimp.com for two-browser install: Chrome Web Store link, remove Firefox-only wording where it would be misleading, and match the `1.1.0` listing.
+- [x] Update mklimp.com to include price range info
+- [x] Update mklimp.com privacy section to match the info in `Extension Listing.md`
+
+**Explicitly out of scope for this phase:**
+- Microsoft Edge Add-ons (Phase 4.1).
+- International support, multi-currency, and locale-specific quantity matching (Phase 7).
+- Firefox Android (Phase 13).
+- Compatibility testing with similar Chrome extensions installed at the same time (Phase 4.1).
+- Visual redesign or new product features.
+- Distribution/feedback campaign beyond the listing, README, git-publish, and site updates above.
+
+### Phase 4.1: Microsoft Edge Add-ons
+Goal: list the Chromium-compatible build on Microsoft Edge Add-ons after the Chrome listing is stable. Do not expand product scope.
+
+Edge is Chromium, so the Phase 4 package should load as-is. This phase is a separate store submission, not a second codebase.
+
+Start this phase only after the Chrome listing is live and the `1.1.0` package has been smoke tested. Use the current shared version; bump only if Edge requires package changes.
+
+**Edge Add-ons Setup (do first - blocks publishing)**
+- [ ] Create a Microsoft Partner Center / Edge Add-ons publisher account.
+- [ ] Complete any required publisher verification before the first submission.
+
+**Dev Environment**
+- [ ] Install desktop Edge on Linux if it is not already available, or confirm an existing Edge install.
+- [ ] Document Load unpacked steps for Edge next to the Firefox and Chrome loading sections.
+
+**Smoke test**
+- [ ] Load the current shared package unpacked in desktop Edge.
+- [ ] Repeat the Phase 4 smoke checks: category pages, search pages, SPA category switches, pagination, Back, Preferences / badge size, and Live tiles excluded.
+- [ ] Note any Edge-only listing or options-UI differences. Branch in code only if a real difference blocks listing.
+- [ ] In Chrome, test Price Helper with similar iHerb unit-price extensions installed in the same profile, especially `Unit Price for iHerb / Smart Value Comparison`, and confirm badge placement, selectors, MutationObserver behavior, and CSS remain isolated.
+
+**Edge listing (README and git-publish are required if this release changes user-facing docs or the published snapshot)**
+- [ ] Add Edge listing content to `Extension Listing.md` using the Chrome Web Store and Firefox listing sections. Adjust store specific fields, screenshot sizes, and permission text.
+- [ ] Capture Edge screenshots from the submitted build.
+- [ ] Update `README.md` for Edge install alongside Firefox and Chrome.
+- [ ] Submit the package to Microsoft Edge Add-ons.
+- [ ] If the published snapshot or version changed, follow `git-publish.md`. If only store listing copy changed, record that in README and skip a redundant snapshot.
+
+**Site update (after the Edge listing is live)**
+- [ ] Update mklimp.com with the Edge Add-ons install link.
+
+**Explicitly out of scope for this phase:**
+- New product features, visual redesign, international support, or Firefox Android.
+- Re-doing the Chrome port or introducing an Edge-specific source tree.
+
+### Phase 5: Git Publish Automation
+- [ ] Convert git-publish.md to git commands.
+
+### Phase 6: Jira Setup
 DUE TO SITE UPGRADE INITIATED ON 7/10/26, THE SITE SEEMS TO BE IN AN IN-BETWEEN STATE. LINKS ARE BROKEN (FOR EXAMPLE, TASKS AND VIEW ALL ITEMS ON SUMMARY PAGE). POSTPONING FOR NOW.
 
 Scrum seems ironically very structured for an Agile life cycle. This means I can use my time tested 100% successful project methods and start using Scrum terminology.
@@ -420,15 +572,74 @@ Scrum seems ironically very structured for an Agile life cycle. This means I can
 - [x] Create Jira account and Scrum project for Price Helper for iHerb.
 - [ ] Create board columns: Backlog, Selected, In Progress, Review/Test, Done.
 - [ ] Create epics for the active near-term phases.
-- [ ] Convert Phase 3.7 Android Beta tasks into Jira issues.
-- [ ] Convert Phase 3.8 Git publish automation into Jira issues.
+- [ ] Convert Phase 4 Chrome Desktop Port tasks into Jira issues.
+- [ ] Convert Phase 5 Git Publish Automation tasks into Jira issues.
 - [ ] Configure time tracking fields for estimate, time spent, and remaining work.
 - [ ] Add or choose a % complete tracking method for earn/burn reporting.
 - [ ] Complete one small task using Jira from backlog to Done.
 - [ ] Review estimate vs actual time after the first Jira-managed task.
 - [ ] Decide how `Project Plan.md` and Jira stay in sync.
 
-### Phase 3.7 Android Beta
+### Phase 7: International Audience Research
+Research international iHerb support separately from the Chrome port. The Chrome phase should stay focused on fast publication of the current working product.
+
+**Research notes:**
+- Firefox is not an English-only audience, but it is not the largest browser audience in most international consumer markets.
+- Asian supplement YouTube activity may indicate a real international audience for iHerb shopping tools.
+- Do not translate the extension UI first. The UI has little text, and translation does not help if parsing fails.
+- International readiness depends on whether localized iHerb pages change product titles, quantity words, price formats, currency symbols, decimal separators, or DOM selectors.
+- If localized titles remain mostly English, multi-currency support may be the first useful international feature.
+- If localized titles are translated, add locale-specific quantity terms before investing in UI translation.
+
+**Tasks:**
+- [ ] Smoke test Japanese, Korean, and Chinese iHerb listing/search pages.
+- [ ] Record whether selectors, quantity parsing, currency parsing, badge layout, SPA navigation, and lazy loading still work per locale.
+- [ ] Add follow-up tasks for multi-currency and locale-specific quantity matching if localized pages break the current calculation.
+
+### Phase 8: Low-Priority Detection Backlog
+Enhanced detection is partially complete. Keep the remaining items as low-priority backlog work unless user feedback shows one of these gaps is blocking real use.
+
+- [ ] Handle multiple quantity options on listing pages (products with +More Options)
+- [ ] Improve quantity parsing (handle various formats)
+- [ ] Optimize performance for listing pages with many products
+- [ ] Handle edge cases (missing data, parsing errors)
+- [ ] Continue the Pill Keyword Backlog from Phase 3.66 exports by promoting recurring unmatched terms into the quantity pattern or keyword list
+- [ ] Exclude high priced outliers for the price range. This provides a better range. Possibly use a histgram of some type.
+ 
+### Phase 9: Unit price by product Robust Solution
+- [ ] Define a long-term strategy for maintaining and applying price distributions (potentially including storing aggregated price data on a web server or other persistent storage, while respecting privacy and iHerb terms).
+- [ ] Enhance the solution accounting for failure modes, rate limiting, and graceful degradation when external data is unavailable.
+
+### Phase 10: Robustness
+- [ ] Enhance error handling and fallbacks
+- [ ] Optimize performance (reduce DOM queries, use caching)
+- [ ] Test across different iherb.com page types
+- [ ] If criteria are selected from the left panel, use the price range for the criteria results (url does change for additional criteria)
+- [ ] Handle edge cases (missing data, parsing errors)
+- [ ] Implement keyword configuration loading and promotion flow (candidate -> approved -> active) so pill matching is no longer hardcoded
+- [ ] calculate unit price for "see in cart" items. The price is crossed out in product listing pages. Different field than the extension currently uses.
+- [ ] Scan summary debug info.
+
+### Phase 11: Product Detail Pages (Optional - Lower Priority)
+- [ ] Extract price and quantity from product detail pages
+- [ ] Calculate and display unit price on detail pages
+- [ ] Show price tier
+- [ ] Improve calculation accuracy (address known inaccuracies in iherb.com's serving calculation)
+- [ ] Show calculation breakdown (price / quantity = unit price)
+- [ ] Update dynamically if user changes quantity/options
+
+### Phase 12: Polish & Features
+- [ ] Expand Preferences page beyond the Phase 3.65 badge size control
+- [ ] Optionally apply badge size preference to the category price range badge
+- [ ] Support for different currencies
+- [ ] Improve visual design, extension description and UX
+- [ ] Add keyboard shortcuts (optional)
+- [ ] Support for shopping cart page (optional)
+- [ ] Clean up Price Range badge. Price Helper text rounded like iHerb. The remaining text matches the product badges.
+
+### Phase 13: Android Beta
+Firefox Android is likely a niche market and may not be worth the effort. A Chrome desktop version helps a much larger audience, so Android stays lowest priority unless a clear tester or personal use case appears.
+
 **Target browser: Firefox Nightly for Android** (Gecko MV3 support matches desktop Firefox 142+; no code or manifest changes required).
 
 **Design decisions:**
@@ -450,61 +661,6 @@ Scrum seems ironically very structured for an Agile life cycle. This means I can
   - Option A: USB cable - may be complicated from a VM (USB passthrough required)
   - Option B: WiFi - no cable, but phone and VM must be on the same network
 - [ ] Document findings and follow-up tasks
-
-### Phase 3.8 Automate GIT Publish
-- [ ] Convert git-publish.md to git commands.
-
-### Phase 4: Enhanced Detection
-- [ ] Handle multiple quantity options on listing pages (products with +More Options)
-- [ ] Improve quantity parsing (handle various formats)
-- [ ] Optimize performance for listing pages with many products
-- [ ] Handle edge cases (missing data, parsing errors)
-- [ ] Continue the Pill Keyword Backlog from Phase 3.66 exports by promoting recurring unmatched terms into the quantity pattern or keyword list
-- [ ] Exclude high priced outliers for the price range. This provides a better range. Possibly use a histgram of some type.
- 
-### Phase 5: Unit price by product Robust Solution
-- [ ] Define a long-term strategy for maintaining and applying price distributions (potentially including storing aggregated price data on a web server or other persistent storage, while respecting privacy and iHerb terms).
-- [ ] Enhance the solution accounting for failure modes, rate limiting, and graceful degradation when external data is unavailable.
-
-### Phase 6: Robustness
-- [ ] Enhance error handling and fallbacks
-- [ ] Optimize performance (reduce DOM queries, use caching)
-- [ ] Test across different iherb.com page types
-- [ ] If criteria are selected from the left panel, use the price range for the criteria results (url does change for additional criteria)
-- [ ] Handle edge cases (missing data, parsing errors)
-- [ ] Implement keyword configuration loading and promotion flow (candidate -> approved -> active) so pill matching is no longer hardcoded
-- [ ] calculate unit price for "see in cart" items. The price is crossed out in product listing pages. Different field than the extension currently uses.
-- [ ] Scan summary debug info.
-
-### Phase 7: Product Detail Pages (Optional - Lower Priority)
-- [ ] Extract price and quantity from product detail pages
-- [ ] Calculate and display unit price on detail pages
-- [ ] Show price tier
-- [ ] Improve calculation accuracy (address known inaccuracies in iherb.com's serving calculation)
-- [ ] Show calculation breakdown (price / quantity = unit price)
-- [ ] Update dynamically if user changes quantity/options
-
-### Phase 8: Polish & Features
-- [ ] Expand Preferences page beyond the Phase 3.65 badge size control
-- [ ] Optionally apply badge size preference to the category price range badge
-- [ ] Support for different currencies
-- [ ] Improve visual design, extension description and UX
-- [ ] Add keyboard shortcuts (optional)
-- [ ] Support for shopping cart page (optional)
-- [ ] Clean up Price Range badge. Price Helper text rounded like iHerb. The remaining text matches the product badges.
-
-### Phase 9: Testing & Distribution
-- [ ] Comprehensive testing across different products
-- [ ] Test with various pill formats and edge cases
-- [ ] Performance testing
-- [ ] User acceptance testing
-- [ ] Create documentation
-- [ ] Update extension version to 1.0.0
-- [ ] Consider email for full release. Not used during beta.
-- [ ] Submit the non-beta 1.0 update to AMO
-- [ ] Update all relevant mklimp.com web pages
-  - [ ] Update web page to remove Beta from the name
-  - [ ] The project page, support page and extension update page
 
 ## Testing Strategy
 
@@ -539,7 +695,9 @@ Scrum seems ironically very structured for an Agile life cycle. This means I can
 - Support for other supplement retailers
 - Price alerts
 
-## Timeline Estimate
+## Historical Timeline Estimate
+This estimate reflects the original pre-1.0 implementation plan. Post-1.0 roadmap phases should be estimated inside their own phase sections as they become active.
+
 - Phase 1 (Proof of Concept - Placeholder): 2-3 days
 - Phase 2 (Unit Price Calculation): 1-2 weeks
 - Phase 3 (Unit Price Color Indicator): 2-4 days

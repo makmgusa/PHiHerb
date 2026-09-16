@@ -1,13 +1,11 @@
 ## Price Helper for iHerb
 
-A Firefox extension that adds unit price badges to iHerb.com listing and search pages so you can compare supplement prices at a glance.
+An extension that adds unit price badges to iHerb.com listing and search pages so you can compare supplement prices at a glance.
 
 ### Latest Updates
 
-**Version 1.0.0**
-- Greatly improved product matching for countable supplement formats including softgels, coated tablets, caplets, chewables and similar products.
-- Added category price range summary on listing and search pages.
-- Added a badge text size preference.
+**Version 1.1.0**
+- Updated the extension so it works with both Chrome and Firefox.
 
 See `CHANGELOG.md` for complete release history.
 
@@ -18,9 +16,9 @@ See `CHANGELOG.md` for complete release history.
 - Extracts price from `.price` and quantity from the product link `title` attribute.
 - Calculates `unitPrice = price / quantity` and injects a badge (e.g. `$0.15/unit`) near each qualifying product's price.
 - Color codes each badge with a dot based on where the unit price falls within the category's observed range:
-  - **Green** - lower ~25% of the range (best value).
-  - **Yellow** - middle ~50%.
-  - **Red** - upper ~25% (most expensive).
+  - Green - among the lowest price range
+  - Yellow - middle price range
+  - Red - among the highest price range
 - Category price ranges (low price to high price) accumulate as you browse and persist across page reloads within the browser tab life.
 - Price ranges are tracked per product or search. So Vitamin A will have a different price range than Vitamin D.
 
@@ -34,21 +32,20 @@ See `CHANGELOG.md` for complete release history.
 
 ### File Overview
 
-- `iherb-extension/manifest.json` - WebExtension manifest (Manifest V3, Firefox).
+- `iherb-extension/manifest.json` - WebExtension manifest.
 - `iherb-extension/config.json` - Developer debug setting for local troubleshooting.
 - `iherb-extension/content/content.js` - Content script for page scanning, price parsing, unit price calculation, badge rendering, and navigation handling.
 - `iherb-extension/shared/product-matching.js` - Shared product quantity and supplement form matching rules.
 - `iherb-extension/shared/badge-size.js` - Shared badge size preference defaults and storage helpers.
-- `iherb-extension/preferences/preferences.css` - Firefox extension preferences page for badge text size.
+- `iherb-extension/preferences/preferences.css` - Extension preferences page for badge text size.
 - `iherb-extension/styles/inject.css` - Styling for unit price badges, color-coded dots, category range badges, and badge sizes.
-- `iherb-extension/icons/` - Extension icons used by Firefox.
+- `iherb-extension/icons/` - Extension icons
 
 ### Installation
-Install the extension from the Firefox Extensions and Themes menu. If you are having problems finding it, go to https://mklimp.com/phiherb and click the install link.
+Install the extension from the Chrome Extension Web store or Firefox Extensions and Themes menu. If you are having problems finding it, go to https://mklimp.com/phiherb and click the install link.
 
 ### Privacy
 - This extension collects no data. It reads product, price and quantity information from the iHerb site and then adds Price Helper info near that price.
-- Firefox labels the https://www.iherb.com content permission as accessing "your" data. This is standard boilerplate for any extension that reads a site's page content. No personal data is accessed or transmitted. The full source is available at https://github.com/makmgusa/iHerb.
 
 ### Feedback
 
