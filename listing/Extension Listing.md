@@ -45,7 +45,10 @@ The extension identifies pill and capsule like products. Products that aren't so
 - No background activity on other sites
 - Collects and transmits zero data
 - No accounts, analytics, or tracking
-- [Open source](https://github.com/makmgusa/iHerb)
+- [Open source](https://github.com/makmgusa/PHiHerb)
+
+**Supported iHerb sites**
+US, UK, Canada, Australia, Singapore and New Zealand
 
 ### Category
 
@@ -125,7 +128,6 @@ Use this procedure for a public AMO release. Version source of truth is `iherb-e
 
 1. Increment and verify release version:
    - Increment the version in `iherb-extension/manifest.json`.
-   - Update the XPI file name section in this document.
    - Confirm planned git tags/releases match the `manifest.json` version exactly.
 
 2. Review release documentation:
@@ -136,28 +138,27 @@ Use this procedure for a public AMO release. Version source of truth is `iherb-e
 
 3. Verify release config:
    - Confirm `manifest.json` name, description, homepage, developer info, and data collection fields are current.
-   - Confirm AMO listed update behavior is correct before building. Review whether `browser_specific_settings.gecko.update_url` should be removed for the listed AMO package.
+   - Confirm AMO listed update behavior is correct before building.
    - Confirm `config.json` does not expose development behavior for the release build.
 
 4. Build the AMO submission package:
    - Follow the Shared Release Package section.
-   - Upload the `.zip` file created by `web-ext build`.
 
 5. Capture release screenshots:
-   - Use the final release build so screenshots match the submitted behavior.
-   - Use the screenshot list in the Shared Screenshot Plan section.
+   - If updates affected the screenshot, capture new screenshots. Google is very particular about the exact screenshot size.
 
 6. Submit the extension as listed:
    - Go to https://addons.mozilla.org/en-US/developers/
-   - Choose listed distribution.
-   - Upload the `.zip` file created by `web-ext build`.
+   - Login if not
+   - Choose the Price Helper extension
+   - Choose Upload New Version from the panel on the left. Upload the `.zip` file created by `web-ext build`.
    - Verify AMO validation has no errors or warnings.
    - Select desktop only unless Android support has been verified.
    - Enter the listing fields from this document.
    - Enter the release notes from the Version Details section.
    - Submit for AMO review.
-   - Upload screenshots to the Developer Hub.
-   - Upload 128x128 icon to the Developer Hub.
+   - Wait for submission approval email.
+   - Upload any updates to the developer hub including description, screenshots and icons
 
 7. Download the XPI for upload with the GitHub release:
    - Go to https://addons.mozilla.org/en-US/developers/ and open the extension from My Add-ons.
@@ -170,7 +171,7 @@ Use this procedure for a public AMO release. Version source of truth is `iherb-e
    - Rename the file if desired. See the XPI file name section.
 
 8. Publish the public GitHub release snapshot:
-   - Follow `git-publish.md` to copy the final release snapshot from `iHerbDev` to the public `iHerb` repo.
+   - Follow `git-publish.md` to copy the final release snapshot from `iHerbDev` to the public `PHiHerb` repo.
    - Create matching release tags/assets where the procedure calls for them.
    - Verify the public repo matches the exact version submitted to AMO.
 
@@ -211,7 +212,7 @@ Fields that must be set on the AMO Developer Hub before or at public release.
 
 ### AMO XPI File Name
 
-price_helper_iherb_X.X.X.xpi
+price_helper_iherb-X.X.X.xpi
 
 ### AMO Add-on URL Slug
 
@@ -277,7 +278,7 @@ Runs only on iherb.com
 No background activity on other sites
 Collects and transmits zero data
 No accounts, analytics, or tracking
-Open source: https://github.com/makmgusa/iHerb
+Open source: https://github.com/makmgusa/PHiHerb
 ```
 
 ### Chrome Badge Color Lines
@@ -349,6 +350,6 @@ Use this procedure for a public Chrome Web Store release. Version source of trut
 
 6. Submit the extension to Chrome Web Store:
    - Go to the Chrome Web Store Developer Dashboard.
-   - Upload the `.zip` file created by `web-ext build`.
+   - Choose Build > Package from the left side. Click upload new package. Drag and drop the zip file.
    - Enter the shared listing fields and Chrome specific justifications from this document.
    - Submit for Chrome review.

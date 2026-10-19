@@ -505,7 +505,7 @@ Do Chrome Web Store account/admin work in a normal browser profile or a dedicate
 - [x] Build the store zip (`web-ext build`) from the smoke-tested `1.1.0` source.
 - [x] Submit `1.1.0` to the Chrome Web Store.
 - [x] Submit the same `1.1.0` package to AMO so Firefox stays in sync.
-- [ ] Publish the `v1.1.0` snapshot to the public GitHub repo using `git-publish.md`.
+- [x] Publish the `v1.1.0` snapshot to the public GitHub repo using `git-publish.md`.
 
 **Site update (after the Chrome listing is live)**
 - [x] add #privacy tag to phiherb page for privacy statement submission.
@@ -521,12 +521,36 @@ Do Chrome Web Store account/admin work in a normal browser profile or a dedicate
 - Visual redesign or new product features.
 - Distribution/feedback campaign beyond the listing, README, git-publish, and site updates above.
 
+### Phase 4.05: Rename Public GitHub Repo to PHiHerb
+Goal: rename the public release repo from `iHerb` to `PHiHerb` so the GitHub name matches `mklimp.com/phiherb` and the Price Helper name.
+
+GitHub keeps releases, tags, and history. Old `https://github.com/makmgusa/iHerb` URLs redirect after the rename.
+
+- [x] Rename `makmgusa/iHerb` to `makmgusa/PHiHerb` on GitHub.
+- [x] Rename `/home/megagrubby/Code/iHerb` to `/home/megagrubby/Code/PHiHerb`.
+- [x] Set `origin` to `git@github.com:makmgusa/PHiHerb.git`.
+- [x] Update `git-publish.md` repo names, folder paths, and workspace name.
+- [x] Update the two GitHub URLs in `listing/Extension Listing.md`.
+- [x] Update the mklimp site GitHub link in `phiherb.astro`.
+- [x] Refresh CWS and AMO listing text if those listings already show the old GitHub URL.
+
+**Explicitly out of scope for this phase:**
+- Renaming `iHerbDev`.
+- Changing the extension id `price-helper-for-iherb@mklimp.com`.
+- Rewriting completed history that still says `iHerb` as the old public repo name.
+
+### Phase 4.06 Exclude Outliers
+- [ ] Exclude high priced outliers for the price range. This provides a better range. Possibly use a histogram of some type.
+
+
 ### Phase 4.1: Microsoft Edge Add-ons
 Goal: list the Chromium-compatible build on Microsoft Edge Add-ons after the Chrome listing is stable. Do not expand product scope.
 
 Edge is Chromium, so the Phase 4 package should load as-is. This phase is a separate store submission, not a second codebase.
 
 Start this phase only after the Chrome listing is live and the `1.1.0` package has been smoke tested. Use the current shared version; bump only if Edge requires package changes.
+
+Uptake in Chrome and Firefox is gradual. As expected. This phase will only be executed if installations hit a significant number.
 
 **Edge Add-ons Setup (do first - blocks publishing)**
 - [ ] Create a Microsoft Partner Center / Edge Add-ons publisher account.
@@ -557,33 +581,39 @@ Start this phase only after the Chrome listing is live and the `1.1.0` package h
 - Re-doing the Chrome port or introducing an Edge-specific source tree.
 
 ### Phase 5: Git Publish Automation
+Quite often a GIThub change causes a revision to the publish procedure. Until GIT is less dynamic this phase is on hold. The manual publish only takes about 15 minutes.
 - [ ] Convert git-publish.md to git commands.
 
-### Phase 6: Jira Setup
-DUE TO SITE UPGRADE INITIATED ON 7/10/26, THE SITE SEEMS TO BE IN AN IN-BETWEEN STATE. LINKS ARE BROKEN (FOR EXAMPLE, TASKS AND VIEW ALL ITEMS ON SUMMARY PAGE). POSTPONING FOR NOW.
+### Phase 6: Linear Setup
+Changed from Jira to Linear. Because of this, some terminology below requires updates. The initial Jira attempt occurred after a Jira site update and was problematic. Some recent news included new Linear features so I explored that application. Linear has a lot of good "getting started" information and the small project overview aligned well with this project.
 
-Scrum seems ironically very structured for an Agile life cycle. This means I can use my time tested 100% successful project methods and start using Scrum terminology.
 - Phases become Epics.
 - Checklist items become Tasks.
 - Earn/burn tracking becomes estimate + time spent + % complete.
 - Weekly planning becomes a Sprint.
 - Lessons learned become a Retro.
 - Your project plan stays the strategic source of truth.
-- [x] Create Jira account and Scrum project for Price Helper for iHerb.
+- [ ] Create Linear account and Scrum project for Price Helper for iHerb.
 - [ ] Create board columns: Backlog, Selected, In Progress, Review/Test, Done.
 - [ ] Create epics for the active near-term phases.
-- [ ] Convert Phase 4 Chrome Desktop Port tasks into Jira issues.
-- [ ] Convert Phase 5 Git Publish Automation tasks into Jira issues.
+- [ ] Convert Phase 4 Chrome Desktop Port tasks into Linear issues.
+- [ ] Convert Phase 5 Git Publish Automation tasks into Linear issues.
 - [ ] Configure time tracking fields for estimate, time spent, and remaining work.
 - [ ] Add or choose a % complete tracking method for earn/burn reporting.
-- [ ] Complete one small task using Jira from backlog to Done.
-- [ ] Review estimate vs actual time after the first Jira-managed task.
-- [ ] Decide how `Project Plan.md` and Jira stay in sync.
+- [ ] Complete one small task using Linear from backlog to Done.
+- [ ] Review estimate vs actual time after the first Linear-managed task.
+- [ ] Decide how `Project Plan.md` and Linear stay in sync.
 
 ### Phase 7: International Audience Research
 Research international iHerb support separately from the Chrome port. The Chrome phase should stay focused on fast publication of the current working product.
 
 **Research notes:**
+- Australia is the best first international pilot because the site is English, uses the same product title patterns, and mostly needs host matching plus `AU$` currency handling.
+- After Australia, evaluate other English-friendly iHerb markets before full localization work. Best candidates are New Zealand (`NZ$`), Singapore (`S$`), the United Kingdom (`£`), and Ireland (`€`).
+- Keep three support surfaces separate: `manifest.json` host matches control where the extension runs, Chrome Web Store country distribution controls where Chrome users can install, and store listing locales control language only.
+- Chrome Web Store does not automatically translate listing text. It supports localized listing metadata and localized screenshots per locale.
+- AMO does not have a Chrome-style country distribution setting. AMO supports localized listing text and screenshot captions, but screenshot images are one shared set.
+- Use README, the project site, and store listing text to explain supported iHerb sites because host permissions are technical enforcement, not a clear user support matrix.
 - Firefox is not an English-only audience, but it is not the largest browser audience in most international consumer markets.
 - Asian supplement YouTube activity may indicate a real international audience for iHerb shopping tools.
 - Do not translate the extension UI first. The UI has little text, and translation does not help if parsing fails.
@@ -592,9 +622,24 @@ Research international iHerb support separately from the Chrome port. The Chrome
 - If localized titles are translated, add locale-specific quantity terms before investing in UI translation.
 
 **Tasks:**
+- [ ] English speaking localization
+  - [x] Update version to 1.1.1
+  - [x] Add `au.iherb.com` to every required `manifest.json` match section, then verify Chrome extension site access allows the new host.
+  - [x] Update currency parsing so `AU$` displays as `AU$0.16/unit` instead of `A0.16/unit`, while preserving current `$` behavior.
+  - [x] Smoke test Australian listing/search pages with AU currency and US currency selected.
+      Test complete. Price range maintained but the products display in a different order so the range is technically inaccurate.
+  - [x] Extend currency display rules only as each market is verified (`NZ$`, `SG$`, `£`,`CA$`) so unsupported formats do not silently look correct. Also update manifest.json.
+    EU prices are separated by commas so the price calculation does not work. Adding as a later work item.
+  - [x] Release the application for the newly enabled currencies.
+  - [ ] Update mklimp.com to include support for the new sites.
+  - [ ] Upload screenshots for 2 other currencies to AMO (UK and Canada)
+  - [ ] Update the Extension Listing procedure to support the new sites. Consider automating this in the future so updates are not time consuming.
+  - [ ] Make a design decision about currency/country/language switches
+  - [ ] Decide whether unsupported currencies should keep the old fallback behavior, fail closed, or show a debug-only signal.
+  - [ ] Decide how category range badges should handle currency, including the current hardcoded `$` display and whether ranges should reset or split by currency.
+- [ ] Add support for comma separated currencies including the EU
 - [ ] Smoke test Japanese, Korean, and Chinese iHerb listing/search pages.
 - [ ] Record whether selectors, quantity parsing, currency parsing, badge layout, SPA navigation, and lazy loading still work per locale.
-- [ ] Add follow-up tasks for multi-currency and locale-specific quantity matching if localized pages break the current calculation.
 
 ### Phase 8: Low-Priority Detection Backlog
 Enhanced detection is partially complete. Keep the remaining items as low-priority backlog work unless user feedback shows one of these gaps is blocking real use.
@@ -604,7 +649,6 @@ Enhanced detection is partially complete. Keep the remaining items as low-priori
 - [ ] Optimize performance for listing pages with many products
 - [ ] Handle edge cases (missing data, parsing errors)
 - [ ] Continue the Pill Keyword Backlog from Phase 3.66 exports by promoting recurring unmatched terms into the quantity pattern or keyword list
-- [ ] Exclude high priced outliers for the price range. This provides a better range. Possibly use a histgram of some type.
  
 ### Phase 9: Unit price by product Robust Solution
 - [ ] Define a long-term strategy for maintaining and applying price distributions (potentially including storing aggregated price data on a web server or other persistent storage, while respecting privacy and iHerb terms).

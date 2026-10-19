@@ -2,6 +2,16 @@
 
 User-facing release history for Price Helper for iHerb.
 
+
+## 1.1.1
+- Renamed the public repository to PHiHerb for name consistency 
+- The extension now works with iherb sites for the United Kingdom, Canada, Australia, Singapore and New Zealand
+
+
+## 1.1.0
+- Added Chrome Web Store support while keeping the same source package for Firefox.
+
+
 ## 1.0.0
 - Greatly improved product matching for countable supplement formats including softgels, coated tablets, caplets, chewables and similar products.
 - Added category price range summary on listing and search pages.

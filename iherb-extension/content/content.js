@@ -11,6 +11,18 @@ const VERSION = browser.runtime.getManifest().version;
 let debug = false;
 let beta = false;
 
+const SUPPORTED_CURRENCY_TOKENS = ["AU$", "$", "CA$", "£", "NZ$", "SG$"];
+
+function matchSupportedCurrencyToken(rawPriceText) {
+  const trimmedPriceText = rawPriceText.trimStart();
+  for (const token of SUPPORTED_CURRENCY_TOKENS) {
+    if (trimmedPriceText.slice(0, token.length) === token) {
+      return token;
+    }
+  }
+  return null;
+}
+
 // Debug telemetry for the optional panel shown when config.json enables debug.
 const debugScanTelemetry = {
   nextScanReason: "direct",
@@ -232,7 +244,9 @@ class Product {
       return null;
     }
     const symbolMatch = rawPriceText.match(/[^0-9.,\s]/);
-    const currencySymbol = symbolMatch ? symbolMatch[0] : "$";
+    const currencySymbol =
+      matchSupportedCurrencyToken(rawPriceText) ??
+      (symbolMatch ? symbolMatch[0] : "$");
     return { value, currencySymbol };
   }
 
